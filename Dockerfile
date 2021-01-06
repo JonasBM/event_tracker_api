@@ -32,10 +32,7 @@ COPY ./src /code
 WORKDIR /code
 VOLUME /code
 
-RUN mkdir /scripts
 COPY ./scripts /scripts
-VOLUME /scripts
-
 
 RUN chmod +x /scripts/*
 
