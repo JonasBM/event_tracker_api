@@ -1,0 +1,256 @@
+{% load tagfilters %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+</head>
+<style>
+  @page {
+    size: a4 portrait;
+    margin-top: 30mm;
+    margin-left: 30mm;
+    margin-bottom: 20mm;
+    margin-right: 20mm;
+
+    @frame header_content {
+      -pdf-frame-content: header_content;
+      left: 30mm;
+      width: 160mm;
+      top: 10mm;
+    }
+
+    @frame header_content_span {
+      -pdf-frame-content: header_content_span;
+      left: 30mm;
+      width: 160mm;
+      top: 23mm;
+    }
+
+    @frame footer_frame {
+      -pdf-frame-content: footer_content;
+      left: 30mm;
+      width: 160mm;
+      top: 277mm;
+      height: 10mm;
+    }
+  }
+
+  #header_content {
+    width: 100%;
+    text-align: left;
+    vertical-align: bottom;
+    border-bottom: 1px solid black;
+  }
+
+  #header_content img {
+    width: 50mm;
+  }
+
+  #header_content_span {
+    width: 100%;
+    text-align: right;
+    vertical-align: bottom;
+  }
+
+  #footer_content {
+    text-align: right;
+    vertical-align: bottom;
+    border-top: 1px solid black;
+  }
+
+  table,
+  th,
+  td {
+    border: 1px solid black;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    vertical-align: bottom;
+    height: 6mm;
+    margin-left: 2mm;
+  }
+
+  h1 {
+    font-size: 5mm;
+  }
+
+  p {
+    text-align: justify;
+  }
+
+  div.nobreak {
+    page-break-inside: avoid
+  }
+</style>
+
+<body>
+  <div id="header_content">
+    <img src='https://itajai.sc.gov.br/img/conteudo/images/LogoPNG.png' />
+  </div>
+
+  <div id="header_content_span">
+    <span> RELATÓRIO DE ATIVIDADES ({{today|date:"d/m/Y"}})</span>
+  </div>
+
+
+  <div id="footer_content">pagina <pdf:pagenumber>
+      de <pdf:pagecount>
+  </div>
+
+  <div>
+    <br />
+    <h2 align="center">RELATÓRIO DE ATIVIDADES</h2>
+    <h6 align="center">
+      Mês de referência: {{reference|date:"F \d\e Y"}} <br />
+      AFM: {{user.get_full_name}} <br />
+      Matrícula: {{user.profile.matricula}}
+    </h6>
+    <br />
+    <div>
+      <h2 align="left">1. RELATÓRIO SINTÉTICO</h2>
+      <h2 align="left">1.1. Autos</h2>
+      {% for type in notice_event_types %}
+      <div>
+        <span><strong>1.1.{{ forloop.counter }}. {{type.name}}</strong><br />Total: {{notice_events|count_notice_event_type:type}}</span>
+        {% if notice_events|count_notice_event_type:type > 0 %}
+        <table>
+          <tr>
+            <th width="100"><span>DATA</span></th>
+            <th width="400"><span>ENDEREÇO</span></th>
+            <th width="100"><span>N°</span></th>
+          </tr>
+          {% for notice_event in notice_events|filter_notice_event_type:type %}
+          <tr>
+            <td>{{notice_event.date|date:"d/m/Y"}}</td>
+            <td>{{notice_event.notice.imovel.name_string}}</td>
+            <td>{{notice_event.identification}}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        {% endif %}
+
+      </div>
+      <br />
+      {% endfor %}
+
+      <br />
+      <h2 align="left">1.2. Vistorias</h2>
+
+      {% for type in survey_event_types %}
+
+      <div>
+        <span><strong>1.2.{{ forloop.counter }}. {{type.name}}</strong><br />Total: {{survey_events|count_survey_event_type:type}}</span>
+
+        {% if survey_events|count_survey_event_type:type > 0 %}
+        <table>
+          <tr>
+            <th width="100">DATA</th>
+            <th width="400">ENDEREÇO</th>
+            <th width="100">N°</th>
+          </tr>
+          {% for survey_event in survey_events|filter_survey_event_type:type %}
+          <tr>
+            <td>{{survey_event.date|date:"d/m/Y"}}</td>
+            <td>{{survey_event.imovel.name_string}}</td>
+            <td>{{survey_event.identification}}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        {% endif %}
+      </div>
+      <br />
+      {% endfor %}
+    </div>
+    <div>
+      <h2 align="left">2. RELATÓRIO ANALÍTICO</h2>
+      <div>
+        <h2 align="left">2.1. Autos</h2>
+        {% if notices.count > 0 %}
+        {% for notice in notices %}
+        <div>
+          <strong>Imóvel: {{notice.imovel.name_string}} </strong><br />
+          Complemento de endereço: {{notice.address}} <br />
+          Documento: {{notice.document}} <br />
+          Descrição: {{notice.description|linebreaksbr}} <br />
+          Grupo de autos do imóvel: <br />
+          <div style="padding-left:10px;">
+            {% for notice_event in notice.notice_events.all %}
+            <strong>{{notice_event.date|date:"d/m/Y"}} ({{notice_event.notice_event_type.name}}):</strong> <br />
+            <div style="padding-left:20px;">
+              Nº: {{notice_event.identification}} <br />
+
+              {% if notice_event.notice_event_type.show_report_number %}
+              Relatório fiscal: {{notice_event.report_number}} <br />
+              {% endif %}
+
+              {% if notice_event.notice_event_type.show_deadline %}
+              Prazo: {{notice_event.deadline_date}} <br />
+              {% endif %}
+
+              {% if notice_event.notice_event_type.show_concluded %}
+              {% if notice_event.concluded %}
+              Concluido: Sim <br />
+              {% else %}
+              Concluido: Não <br />
+              {% endif %}
+              {% endif %}
+
+              {% if notice_event.notice_event_type.show_fine %}
+              Multa: <br />
+              {% for notice_event in notice.notice_events.all %}
+              {{notice_event.notice_fines.date|date:"d/m/Y"}} - {{notice_event.notice_fines.identification}} <br />
+              {% endfor %}
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          </p>
+          <br />
+          {% endfor %}
+          {% endif %}
+        </div>
+        <br />
+        <div>
+          <h2 align="left">2.2. Vistorias</h2>
+          {% if survey_events.count > 0 %}
+          {% for survey_event in survey_events %}
+          <p>
+            <strong>{{survey_event.date|date:"d/m/Y"}} ({{survey_event.survey_event_type.name}}):</strong> <br />
+            <strong>Imóvel: {{survey_event.imovel.name_string}} </strong><br />
+            Complemento de endereço: {{survey_event.address}} <br />
+            Documento: {{survey_event.document}} <br />
+            Identificação: {{survey_event.identification}} <br />
+            Descrição: {{survey_event.description|linebreaksbr}} <br />
+            {% if survey_event.concluded %}
+            Concluido: Sim <br />
+            {% else %}
+            Concluido: Não <br />
+            {% endif %}
+            <br />
+          </p>
+          {% endfor %}
+          {% endif %}
+        </div>
+        <br />
+        <div>
+          <h2 align="left">2.3. Atividades</h2>
+          <span>Total: {{activitys.count}}</span>
+          {% for activity in activitys %}
+          <p>
+            <strong>{{activity.date|date:"d/m/Y"}}:</strong> <br />
+            Descrição: <br />
+            {{activity.description|linebreaksbr}}
+          </p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+</body>
+
+</html>

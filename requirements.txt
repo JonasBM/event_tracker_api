@@ -1,0 +1,8 @@
+Django==3.1.2
+psycopg2==2.8.6
+uWSGI==2.0.19.1
+djangorestframework==3.12.1
+django-cors-headers==3.5.0
+django-rest-knox==4.1.0
+xhtml2pdf==0.2.5
+python-docx==0.8.10
