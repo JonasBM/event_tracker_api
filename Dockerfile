@@ -27,12 +27,15 @@ RUN set -ex \
     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false $BUILD_DEPS \
     && rm -rf /var/lib/apt/lists/*
 
-VOLUME ./src /code
-WORKDIR /code
+RUN mkdir /code
+COPY ./src /code
+RUN echo "hello world" > /code
 
+WORKDIR /code
 COPY ./scripts /scripts
 
 RUN chmod +x /scripts/*
 
 EXPOSE 8000
+VOLUME /code
 ENTRYPOINT ["docker-entrypoint.sh"]
