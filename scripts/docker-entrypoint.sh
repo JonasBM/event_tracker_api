@@ -7,20 +7,25 @@ set -e
 # done
 
 # >&2 echo "Postgres is up - continuing"
-
+echo "Starting"
 if [ ! -d /code ]; then
+    echo "/code not found, creating"
     mkdir -p /code;
 fi
 if [ -z "$(ls -A /code/)" ]; then
+    echo "/code empty, coping from src"
     cp -R /src/. /code/
 fi
 
 if [ "x$DJANGO_MANAGEPY_MIGRATE" = 'xon' ]; then
+    echo "starting migration"
     python manage.py migrate --noinput
 fi
 
+echo "starting collectstatic"
 python manage.py collectstatic --noinput
 
+echo "starting uwsgi"
 uwsgi
     --socket=:8000 \
     --master \
