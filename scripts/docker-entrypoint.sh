@@ -8,11 +8,7 @@ set -e
 
 # >&2 echo "Postgres is up - continuing"
 echo "Starting"
-if [ ! -d /code ]; then
-    echo "/code not found, creating"
-    mkdir -p /code;
-fi
-if [ ! -d /code/manage.py ]; then
+if [ ! -f /code/manage.py ]; then
     echo "manage.py not found, coping files from source"
     cp -R /src/. /code/
 fi
