@@ -22,16 +22,6 @@ echo "Starting collectstatic"
 python manage.py collectstatic --noinput
 
 echo "Starting uwsgi"
-uwsgi
-    --socket :8000 \
-    --master \
-    --enable-threads
-    --module eventtracker.wsgi:application \
-    --env DJANGO_SETTINGS_MODULE=eventtracker.settings \
-    --processes=5 \
-    --uid=1000 --gid=2000 \
-    --max-requests=5000 \
-    --vacuum \
-    --daemonize=/code/log/uwsgi/eventtracker.log
+uwsgi --socket :8000 --master --enable-threads --processes 5 --threads 2 --vacuum --daemonize=/code/log/uwsgi/eventtracker.log --module eventtracker.wsgi
 
 exec "$@"
