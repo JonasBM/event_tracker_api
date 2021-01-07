@@ -9,19 +9,19 @@ set -e
 # >&2 echo "Postgres is up - continuing"
 echo "Starting"
 if [ ! -f /code/manage.py ]; then
-    echo "manage.py not found, coping files from source"
+    echo "manage.py not found, copying files from source"
     cp -R /src/. /code/
 fi
 
 if [ "x$DJANGO_MANAGEPY_MIGRATE" = 'xon' ]; then
-    echo "starting migration"
+    echo "Starting migration"
     python manage.py migrate --noinput
 fi
 
-echo "starting collectstatic"
+echo "Starting collectstatic"
 python manage.py collectstatic --noinput
 
-echo "starting uwsgi"
+echo "Starting uwsgi"
 uwsgi
     --socket=:8000 \
     --master \
