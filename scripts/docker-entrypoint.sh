@@ -15,13 +15,6 @@ if [ -z "$(ls -A /code/)" ]; then
     cp -R /src/. /code/
 fi
 
-if [ ! -d /code/static ]; then
-    mkdir -p /code/static;
-fi
-if [ -z "$(ls -A /code/static/)" ]; then
-    cp -R /src/static/. /code/static/
-fi
-
 if [ "x$DJANGO_MANAGEPY_MIGRATE" = 'xon' ]; then
     python manage.py migrate --noinput
 fi

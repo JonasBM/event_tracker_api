@@ -311,7 +311,7 @@ def update_cep():
     inalterados = 0
     errors = 0
 
-    dest_folder = settings.STATIC_ROOT + "/temp_geoitajai"
+    dest_folder = settings.MEDIA_ROOT + "/temp_geoitajai"
     if not os.path.exists(dest_folder):
         os.makedirs(dest_folder)
     filename = datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "-cep_log.txt"
@@ -417,7 +417,7 @@ class migrate_from_geoitajai(generics.RetrieveAPIView):
             )
         else:
 
-            dest_folder = settings.STATIC_ROOT + "/temp_geoitajai"
+            dest_folder = settings.MEDIA_ROOT + "/temp_geoitajai"
             if not os.path.exists(dest_folder):
                 os.makedirs(dest_folder)
 
