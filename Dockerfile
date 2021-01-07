@@ -33,6 +33,6 @@ COPY ./scripts /scripts
 RUN chmod +x /scripts/*
 
 EXPOSE 8000
-VOLUME /code
+
 WORKDIR /code
 ENTRYPOINT ["docker-entrypoint.sh"]
