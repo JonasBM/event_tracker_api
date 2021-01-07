@@ -1,6 +1,5 @@
 docker-compose-deploy.yml
 docker-compose.yml
-src/static
 .vs
 
 # Byte-compiled / optimized / DLL files
