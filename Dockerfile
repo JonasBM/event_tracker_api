@@ -29,9 +29,8 @@ RUN set -ex \
 
 RUN mkdir /code
 COPY ./src /code
-RUN echo "hello world" > /code
-
 WORKDIR /code
+RUN touch file.txt
 COPY ./scripts /scripts
 
 RUN chmod +x /scripts/*
