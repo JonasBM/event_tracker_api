@@ -23,10 +23,10 @@ python manage.py collectstatic --noinput
 
 echo "Starting uwsgi"
 uwsgi
-    --socket=:8000 \
+    --socket :8000 \
     --master \
     --enable-threads
-    --module=eventtracker.wsgi:application \
+    --module eventtracker.wsgi:application \
     --env DJANGO_SETTINGS_MODULE=eventtracker.settings \
     --processes=5 \
     --uid=1000 --gid=2000 \
