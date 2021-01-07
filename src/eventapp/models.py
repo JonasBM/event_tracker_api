@@ -18,6 +18,7 @@ class Profile(models.Model):
 
 
 class ImovelUpdateLog(models.Model):
+    datetime_started = models.DateTimeField(default=timezone.now)
     datetime = models.DateTimeField(default=timezone.now)
     status = models.CharField(
         max_length=255, null=True, blank=True, default=""

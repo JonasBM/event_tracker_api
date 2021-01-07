@@ -28,7 +28,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "secretkeyissecret")
 DEBUG = bool(int(os.environ.get("DEBUG", 1)))
 
 ALLOWED_HOSTS = []
-ALLOWED_HOSTS_ENV = os.environ.get("ALLOWED_HOSTS")
+ALLOWED_HOSTS_ENV = os.environ.get("ALLOWED_HOSTS", "*")
 if ALLOWED_HOSTS_ENV:
     ALLOWED_HOSTS.extend(ALLOWED_HOSTS_ENV.split(","))
 
@@ -49,6 +49,14 @@ INSTALLED_APPS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ("knox.auth.TokenAuthentication",),
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "20/min",
+        "user": "600/min",
+    },
 }
 
 
@@ -111,6 +119,7 @@ DATABASES = {
     }
 }
 
+
 # Password validation
 # https://docs.djangoproject.com/en/3.1/ref/settings/#auth-password-validators
 
@@ -150,9 +159,10 @@ USE_TZ = True
 STATIC_URL = "/static/static/"
 MEDIA_URL = "/static/media/"
 
-# STATIC_ROOT = '/code/static/static'
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+STATIC_ROOT = "/code/static/static"
+MEDIA_ROOT = "/code/static/media"
+# STATIC_ROOT = os.path.join(BASE_DIR, "static")
+# MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # LOGIN_REDIRECT_URL = '/'
 

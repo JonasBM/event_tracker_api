@@ -34,5 +34,6 @@ RUN chmod +x /scripts/*
 
 EXPOSE 8000
 VOLUME /code
+VOLUME /code/static
 WORKDIR /code
 ENTRYPOINT ["docker-entrypoint.sh"]

@@ -21,6 +21,7 @@ from knox.views import LoginView as KnoxLoginView
 from rest_framework import generics, permissions, status
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.response import Response
+from django.db.models import Q
 
 
 def default_imovel_geoitajai():
@@ -279,6 +280,17 @@ def update_cep_imovel(imovel):
             if len(ceps) == 1:
                 imovel.cep = ceps[0]
                 imovel.save()
+                query_logradouro = Q(logradouro=imovel.logradouro)
+                query_number = Q(numero=imovel.number)
+                query_bairro = Q(bairro=imovel.bairro)
+                query_cep = Q(cep__isnull=True)
+                query = Q(
+                    query_logradouro,
+                    query_number,
+                    query_bairro,
+                    query_cep,
+                )
+                Imovel.objects.filter(query).update(cep=imovel.cep)
             else:
                 print(imovel.id, imovel)
     else:
@@ -299,7 +311,7 @@ def update_cep():
     inalterados = 0
     errors = 0
 
-    dest_folder = settings.STATIC_ROOT + "\\temp_geoitajai"
+    dest_folder = settings.STATIC_ROOT + "/temp_geoitajai"
     if not os.path.exists(dest_folder):
         os.makedirs(dest_folder)
     filename = datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "-cep_log.txt"
@@ -405,7 +417,7 @@ class migrate_from_geoitajai(generics.RetrieveAPIView):
             )
         else:
 
-            dest_folder = settings.STATIC_ROOT + "\\temp_geoitajai"
+            dest_folder = settings.STATIC_ROOT + "/temp_geoitajai"
             if not os.path.exists(dest_folder):
                 os.makedirs(dest_folder)
 
@@ -433,6 +445,7 @@ class migrate_from_geoitajai(generics.RetrieveAPIView):
             default_imovel_geoitajai()
             print("baixando arquivo")
             log = ImovelUpdateLog(
+                datetime_started=timezone.now(),
                 datetime=timezone.now(),
                 status="baixando",
                 response="Baixando arquivo",
@@ -474,7 +487,7 @@ class migrate_from_geoitajai(generics.RetrieveAPIView):
 
 
 def migra_from_old_db(request):
-    return HttpResponse("DESABILITADO")
+    # return HttpResponse("DESABILITADO")
     notices = Notice.objects.all()
     for notice in notices:
         for notice_event in notice.notice_events.all():
