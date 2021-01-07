@@ -12,8 +12,8 @@ if [ ! -d /code ]; then
     echo "/code not found, creating"
     mkdir -p /code;
 fi
-if [ -z "$(ls -A /code/)" ]; then
-    echo "/code empty, coping from src"
+if [ ! -d /code/manage.py ]; then
+    echo "manage.py not found, coping files from source"
     cp -R /src/. /code/
 fi
 
