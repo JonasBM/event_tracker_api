@@ -22,6 +22,6 @@ echo "Starting collectstatic"
 python manage.py collectstatic --noinput
 
 echo "Starting uwsgi"
-uwsgi --socket :8000 --master --enable-threads --processes 5 --threads 2 --vacuum --daemonize=/code/log/uwsgi/eventtracker.log --module eventtracker.wsgi
+uwsgi --socket :8000 --master --enable-threads --processes 5 --module eventtracker.wsgi
 
 exec "$@"
