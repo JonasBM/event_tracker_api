@@ -27,10 +27,8 @@ RUN set -ex \
     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false $BUILD_DEPS \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir /code
-COPY ./src /code
+VOLUME ./src /code
 WORKDIR /code
-VOLUME /code
 
 COPY ./scripts /scripts
 
