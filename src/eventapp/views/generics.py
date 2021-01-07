@@ -121,6 +121,7 @@ def read_from_geoitajai(log, file_path, r):
             inalterados = 0
             alterados = 0
             novos = 0
+            print(len(zip.infolist()))
             for zipfileInfo in zip.infolist():
                 if zipfileInfo.filename.startswith(
                     "geo-master/data/divisaolotes/exportTabela/"
@@ -137,7 +138,7 @@ def read_from_geoitajai(log, file_path, r):
                     )
                     data = json.loads(zip.read(zipfileInfo).decode("utf8"))
                     for instance in data:
-                        if total % 500 == 0:
+                        if total % 100 == 0:
                             log.datetime = timezone.now()
                             log.total = total
                             log.inalterados = inalterados
@@ -203,6 +204,7 @@ def read_from_geoitajai(log, file_path, r):
                             else:
                                 inalterados += 1
     except Exception as e:
+        print("Falha ao ler arquivo compactado")
         log.datetime = timezone.now()
         log.status = "Falha ao ler"
         log.response = str(e)
@@ -238,6 +240,10 @@ def update_cep_imovel(imovel):
 
     if not imovel:
         return False
+
+    if imovel.cep:
+        if len(imovel.cep) >= 8:
+            return True
 
     url_str = (
         "https://buscacepinter.correios.com.br"
@@ -281,16 +287,19 @@ def update_cep_imovel(imovel):
                 imovel.cep = ceps[0]
                 imovel.save()
                 query_logradouro = Q(logradouro=imovel.logradouro)
-                query_number = Q(numero=imovel.number)
+                query_numero = Q(numero=imovel.numero)
                 query_bairro = Q(bairro=imovel.bairro)
                 query_cep = Q(cep__isnull=True)
                 query = Q(
                     query_logradouro,
-                    query_number,
+                    query_numero,
                     query_bairro,
                     query_cep,
                 )
-                Imovel.objects.filter(query).update(cep=imovel.cep)
+                count = Imovel.objects.filter(query).count()
+                if count > 0:
+                    print(ceps[0] + "-" + count)
+                    Imovel.objects.filter(query).update(cep=imovel.cep)
             else:
                 print(imovel.id, imovel)
     else:
@@ -311,7 +320,7 @@ def update_cep():
     inalterados = 0
     errors = 0
 
-    dest_folder = settings.MEDIA_ROOT + "/temp_geoitajai"
+    dest_folder = settings.MEDIA_ROOT + "//temp_geoitajai"
     if not os.path.exists(dest_folder):
         os.makedirs(dest_folder)
     filename = datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "-cep_log.txt"
@@ -417,7 +426,7 @@ class migrate_from_geoitajai(generics.RetrieveAPIView):
             )
         else:
 
-            dest_folder = settings.MEDIA_ROOT + "/temp_geoitajai"
+            dest_folder = settings.MEDIA_ROOT + "//temp_geoitajai"
             if not os.path.exists(dest_folder):
                 os.makedirs(dest_folder)
 
