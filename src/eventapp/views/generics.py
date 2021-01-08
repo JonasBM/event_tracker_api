@@ -193,16 +193,15 @@ def read_from_geoitajai(log, file_path, r):
                             novos += 1
                             imovel = Imovel(**imovel_data)
                             imovel.save()
-                            update_cep_imovel(imovel)
                         else:
                             if filedatetime > imovel.filedatetime:
                                 alterados += 1
                                 for attr, value in imovel_data.items():
                                     setattr(imovel, attr, value)
                                 imovel.save()
-                                update_cep_imovel(imovel)
                             else:
                                 inalterados += 1
+                        update_cep_imovel(imovel)
     except Exception as e:
         print("Falha ao ler arquivo compactado")
         log.datetime = timezone.now()
@@ -272,38 +271,49 @@ def update_cep_imovel(imovel):
         "logradouro": logradouro,
         "numeroLogradouro": numero,
     }
-    r = requests.get(url_str, params=data)
-    if r.ok:
-        jsonresponse = r.json()
-        if jsonresponse["total"] == 1:
-            imovel.cep = jsonresponse["dados"][0]["cep"]
-            imovel.save()
-        else:
-            ceps = []
-            for cep_data in jsonresponse["dados"]:
-                if text_to_id(imovel.bairro) == text_to_id(cep_data["bairro"]):
-                    ceps.append(cep_data["cep"])
-            if len(ceps) == 1:
-                imovel.cep = ceps[0]
+
+    query_logradouro = Q(logradouro=imovel.logradouro)
+    query_numero = Q(numero=imovel.numero)
+    query_bairro = Q(bairro=imovel.bairro)
+    query_cep = Q(cep__isnull=False)
+    query = Q(
+        query_logradouro,
+        query_numero,
+        query_bairro,
+        query_cep,
+    )
+    imovel_with_cep = Imovel.objects.filter(query).first()
+    if imovel_with_cep:
+        if imovel_with_cep.cep:
+            if len(imovel_with_cep.cep) >= 8:
+                imovel.cep = imovel_with_cep.cep
                 imovel.save()
-                query_logradouro = Q(logradouro=imovel.logradouro)
-                query_numero = Q(numero=imovel.numero)
-                query_bairro = Q(bairro=imovel.bairro)
-                query_cep = Q(cep__isnull=True)
-                query = Q(
-                    query_logradouro,
-                    query_numero,
-                    query_bairro,
-                    query_cep,
-                )
-                count = Imovel.objects.filter(query).count()
-                if count > 0:
-                    print(ceps[0] + "-" + count)
-                    Imovel.objects.filter(query).update(cep=imovel.cep)
+                return True
+
+    try:
+        r = requests.get(url_str, params=data)
+        if r.ok:
+            jsonresponse = r.json()
+            if jsonresponse["total"] == 1:
+                imovel.cep = jsonresponse["dados"][0]["cep"]
+                imovel.save()
             else:
-                print(imovel.id, imovel)
-    else:
-        print(r)
+                ceps = []
+                for cep_data in jsonresponse["dados"]:
+                    if text_to_id(imovel.bairro) == text_to_id(
+                        cep_data["bairro"]
+                    ):
+                        ceps.append(cep_data["cep"])
+                if len(ceps) == 1:
+                    imovel.cep = ceps[0]
+                    imovel.save()
+                else:
+                    print(imovel.id, imovel)
+        else:
+            print(r)
+    except Exception as e:
+        print(imovel.id, imovel)
+        print("Falha request correios: " + e)
     return True
 
 
@@ -351,6 +361,7 @@ def update_cep():
             total += 1
 
             if not imovel.cep:
+
                 logradouro = imovel.logradouro.lower().strip()
                 if logradouro.startswith("r."):
                     logradouro = logradouro.replace("r.", "", 1).strip()
@@ -371,36 +382,65 @@ def update_cep():
                     "logradouro": logradouro,
                     "numeroLogradouro": numero,
                 }
-                r = requests.get(url_str, params=data)
-                if r.ok:
-                    jsonresponse = r.json()
-                    if jsonresponse["total"] == 1:
-                        imovel.cep = jsonresponse["dados"][0]["cep"]
-                        imovel.save()
-                        alterados += 1
-                    else:
-                        ceps = []
-                        for cep_data in jsonresponse["dados"]:
-                            if text_to_id(imovel.bairro) == text_to_id(
-                                cep_data["bairro"]
-                            ):
-                                ceps.append(cep_data["cep"])
-                        if len(ceps) == 1:
-                            imovel.cep = ceps[0]
+
+                data = {
+                    "uf": "SC",
+                    "localidade": "Itajai",
+                    "logradouro": logradouro,
+                    "numeroLogradouro": numero,
+                }
+                try:
+                    r = requests.get(url_str, params=data)
+                    if r.ok:
+                        jsonresponse = r.json()
+                        if jsonresponse["total"] == 1:
+                            imovel.cep = jsonresponse["dados"][0]["cep"]
                             imovel.save()
                             alterados += 1
                         else:
-                            errors += 1
-                            print(
-                                "id: "
-                                + str(imovel.id)
-                                + " - imovel: "
-                                + str(imovel),
-                                file=text_file,
-                            )
-                            print(len(ceps), imovel)
-                else:
-                    print(r)
+                            ceps = []
+                            for cep_data in jsonresponse["dados"]:
+                                if text_to_id(imovel.bairro) == text_to_id(
+                                    cep_data["bairro"]
+                                ):
+                                    ceps.append(cep_data["cep"])
+                            if len(ceps) == 1:
+                                imovel.cep = ceps[0]
+                                imovel.save()
+                                query_logradouro = Q(
+                                    logradouro=imovel.logradouro
+                                )
+                                query_numero = Q(numero=imovel.numero)
+                                query_bairro = Q(bairro=imovel.bairro)
+                                query_cep = Q(cep__isnull=True)
+                                query = Q(
+                                    query_logradouro,
+                                    query_numero,
+                                    query_bairro,
+                                    query_cep,
+                                )
+                                count = Imovel.objects.filter(query).count()
+                                if count > 0:
+                                    print(ceps[0] + "-" + count)
+                                    Imovel.objects.filter(query).update(
+                                        cep=imovel.cep
+                                    )
+                                alterados += 1 + count
+                            else:
+                                errors += 1
+                                print(
+                                    "id: "
+                                    + str(imovel.id)
+                                    + " - imovel: "
+                                    + str(imovel),
+                                    file=text_file,
+                                )
+                                print(len(ceps), imovel)
+                    else:
+                        print(r)
+                except Exception as e:
+                    print(imovel.id, imovel)
+                    print("Falha request correios: " + e)
             else:
                 inalterados += 1
     return True

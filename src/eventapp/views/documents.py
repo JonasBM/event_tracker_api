@@ -233,6 +233,14 @@ class NoticeReportDocx(generics.RetrieveAPIView):
             notice = Notice.objects.filter(id=notice_id).first()
 
             if notice:
+                if not notice.imovel:
+                    return Response(
+                        {
+                            "detail": "Apenas é possivel gerar relatório com imóvel cadastrado"
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 first_notice_event = (
                     notice.notice_events.order_by("-date").all().first()
                 )
@@ -418,6 +426,15 @@ class VARequestDocx(generics.RetrieveAPIView):
 
             if vistoria_administrativa:
                 notice = vistoria_administrativa.notice
+
+                if not notice.imovel:
+                    return Response(
+                        {
+                            "detail": "Apenas é possivel gerar relatório com imóvel cadastrado"
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 first_notice_event = (
                     notice.notice_events.order_by("-date").all().first()
                 )
