@@ -18,6 +18,7 @@ class Profile(models.Model):
 
 
 class ImovelUpdateLog(models.Model):
+    state = models.SmallIntegerField(default=0)
     datetime_started = models.DateTimeField(default=timezone.now)
     datetime = models.DateTimeField(default=timezone.now)
     status = models.CharField(
@@ -29,6 +30,9 @@ class ImovelUpdateLog(models.Model):
     novos = models.IntegerField(default=0)
     response = models.CharField(
         max_length=255, null=True, blank=True, default=""
+    )
+    progresso = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, default=0
     )
 
     class Meta:
