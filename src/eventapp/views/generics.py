@@ -77,7 +77,7 @@ def download_from_geoitajai(log, file_path, r):
             print("Salvando em", os.path.abspath(file_path))
             log.state = 11
             log.datetime = timezone.now()
-            log.status = "salvando"
+            log.status = "Salvando"
             log.response = "Salvando em", os.path.abspath(file_path)
             log.save()
             with open(file_path, "wb") as f:
@@ -89,7 +89,7 @@ def download_from_geoitajai(log, file_path, r):
             print("Salvo em", os.path.abspath(file_path))
             log.state = 19
             log.datetime = timezone.now()
-            log.status = "salvo"
+            log.status = "Salvo"
             log.response = "salvo em", os.path.abspath(file_path)
             log.save()
         except Exception as e:
@@ -107,7 +107,7 @@ def download_from_geoitajai(log, file_path, r):
         print("Existe em", os.path.abspath(file_path))
         log.state = 19
         log.datetime = timezone.now()
-        log.status = "existente"
+        log.status = "Existente"
         log.response = "Existe em", os.path.abspath(file_path)
         log.save()
     return True
@@ -118,7 +118,7 @@ def read_from_geoitajai(log, file_path, r):
         print("Lendo arquivo compactado")
         log.state = 20
         log.datetime = timezone.now()
-        log.status = "lendo"
+        log.status = "Lendo"
         log.response = "Lendo arquivo compactado"
         log.total = 0
         log.inalterados = 0
@@ -238,7 +238,7 @@ def read_from_geoitajai(log, file_path, r):
     log.inalterados = inalterados
     log.alterados = alterados
     log.novos = novos
-    log.status = "finalizado"
+    log.status = "Finalizado"
     log.response = (
         "Imóveis atualizados ("
         + str(novos)
@@ -543,7 +543,7 @@ class migrate_from_geoitajai(generics.RetrieveAPIView):
                 log.inalterados = 0
                 log.alterados = 0
                 log.novos = 0
-                log.status = "falhou"
+                log.status = "Falhou"
                 log.response = "Download failed: status code {}\n{}".format(
                     r.status_code, r.text
                 )
