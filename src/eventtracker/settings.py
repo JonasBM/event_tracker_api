@@ -77,12 +77,10 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "https://eventtracker.jonasbm.com.br",
-    "https://eventtracker.calculoengenharia.com.br",
-]
-
+CORS_ALLOWED_ORIGINS = []
+CORS_ALLOWED_ORIGINS_ENV = os.environ.get("CORS_ALLOWED_ORIGINS", "*")
+if CORS_ALLOWED_ORIGINS_ENV:
+    CORS_ALLOWED_ORIGINS.extend(CORS_ALLOWED_ORIGINS_ENV.split(","))
 
 ROOT_URLCONF = "eventtracker.urls"
 

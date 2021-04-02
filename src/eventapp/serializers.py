@@ -25,7 +25,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    profile = ProfileSerializer()
+    profile = ProfileSerializer(required=False)
 
     last_login = serializers.DateTimeField(
         read_only=True, format="%Y-%m-%dT%H:%M"
@@ -47,23 +47,31 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        profile_data = validated_data.pop("profile")
+        profile_data = None
+        if "profile" in validated_data.keys():
+            profile_data = validated_data.pop("profile")
         user = User.objects.create(**validated_data)
-        Profile.objects.create(user=user, **profile_data)
+        if profile_data:
+            Profile.objects.create(user=user, **profile_data)
+        else:
+            Profile.objects.create(user=user)
         return user
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        profile_data = validated_data.pop("profile")
+        profile_data = None
+        if "profile" in validated_data.keys():
+            profile_data = validated_data.pop("profile")
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         profile = Profile.objects.filter(user=instance).first()
         if not profile:
             profile = Profile.objects.create(user=instance)
-        for attr, value in profile_data.items():
-            setattr(profile, attr, value)
-        profile.save()
+        if profile_data:
+            for attr, value in profile_data.items():
+                setattr(profile, attr, value)
+            profile.save()
         return instance
 
 

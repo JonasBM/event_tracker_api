@@ -116,9 +116,9 @@
       <h2 align="left">1. RELATÓRIO SINTÉTICO</h2>
       <h2 align="left">1.1. Autos</h2>
       {% for type in notice_event_types %}
+	  {% if notice_events|count_notice_event_type:type > 0 %}
       <div>
         <span><strong>1.1.{{ forloop.counter }}. {{type.name}}</strong><br />Total: {{notice_events|count_notice_event_type:type}}</span>
-        {% if notice_events|count_notice_event_type:type > 0 %}
         <table>
           <tr>
             <th width="100"><span>DATA</span></th>
@@ -133,21 +133,16 @@
           </tr>
           {% endfor %}
         </table>
-        {% endif %}
-
       </div>
       <br />
+	  {% endif %}
       {% endfor %}
-
       <br />
       <h2 align="left">1.2. Vistorias</h2>
-
       {% for type in survey_event_types %}
-
+      {% if survey_events|count_survey_event_type:type > 0 %}
       <div>
         <span><strong>1.2.{{ forloop.counter }}. {{type.name}}</strong><br />Total: {{survey_events|count_survey_event_type:type}}</span>
-
-        {% if survey_events|count_survey_event_type:type > 0 %}
         <table>
           <tr>
             <th width="100">DATA</th>
@@ -162,11 +157,12 @@
           </tr>
           {% endfor %}
         </table>
-        {% endif %}
       </div>
       <br />
+	  {% endif %}
       {% endfor %}
     </div>
+	{% if include_analytic_data %}
     <div>
       <h2 align="left">2. RELATÓRIO ANALÍTICO</h2>
       <div>
@@ -237,20 +233,26 @@
           {% endfor %}
           {% endif %}
         </div>
-        <br />
-        <div>
-          <h2 align="left">2.3. Atividades</h2>
-          <span>Total: {{activitys.count}}</span>
-          {% for activity in activitys %}
-          <p>
-            <strong>{{activity.date|date:"d/m/Y"}}:</strong> <br />
-            Descrição: <br />
-            {{activity.description|linebreaksbr}}
-          </p>
-          {% endfor %}
-        </div>
+        
       </div>
     </div>
+	{% endif %}
+	<div>
+      {% if include_analytic_data %}
+      <h2 align="left">3. ATIVIDADES</h2>
+	  {% else %}
+      <h2 align="left">2. ATIVIDADES</h2>
+	  {% endif %}
+	  <div>
+        <span>Total: {{activitys.count}}</span>
+        {% for activity in activitys %}
+        <p>
+          <strong>{{activity.date|date:"d/m/Y"}}:</strong> <br />
+          Descrição: <br />
+          {{activity.description|linebreaksbr}}
+        </p>
+        {% endfor %}
+	  </div>
 </body>
 
 </html>

@@ -1,5 +1,5 @@
 {
-  "python.pythonPath": "c:\\Users\\Jonas\\Documents\\WEB DEV\\event_tracker\\backend\\eventtracker_api\\env\\Scripts\\python.exe",
+  "python.pythonPath": "C:\\Users\\Jonas\\Documents\\WEB DEV\\event_tracker\\backend\\eventtracker_api\\env\\Scripts\\python.exe",
   "python.autoComplete.extraPaths": ["\\env\\Lib\\site-packages"],
   "python.linting.enabled": true,
   "python.linting.pylintEnabled": false,
@@ -7,8 +7,9 @@
     "--disable=C0111", // missing docstring
     "--load-plugins=pylint_django,pylint_celery",
     "--enable=W0614",
-    "--enable=W0611",
+    "--enable=W0611"
   ],
   "python.linting.flake8Enabled": true,
-  "python.formatting.blackArgs": ["--line-length", "79"]
+  "python.formatting.blackArgs": ["--line-length", "79"],
+  "python.linting.flake8Args": ["--max-line-length=120"]
 }

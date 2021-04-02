@@ -45,12 +45,26 @@ class ReportPDF(generics.RetrieveAPIView):
     ]
 
     def get(self, request, *args, **kwargs):
+
         user = self.request.user
         user_id = self.request.query_params.get("user_id", None)
         if user_id:
             user_instance = User.objects.filter(id=user_id).first()
             if user_instance:
                 user = user_instance
+
+        include_analytic_data = self.request.query_params.get(
+            "include_analytic_data", None)
+        if not include_analytic_data:
+            include_analytic_data = True
+        if type(include_analytic_data) is not bool:
+            if include_analytic_data == "false":
+                include_analytic_data = False
+            else:
+                include_analytic_data = True
+
+        print(include_analytic_data)
+        print((type(include_analytic_data) is bool))
 
         month = self.request.query_params.get("month", None)
         if month:
@@ -68,8 +82,11 @@ class ReportPDF(generics.RetrieveAPIView):
         query_owner_notice = Q(notice__owner=user)
         query_range = Q(date__range=[start_date, end_date])
         query_owner = Q(owner=user)
-        notice_event_types = NoticeEventType.objects.all()
-        survey_event_types = SurveyEventType.objects.all()
+
+        # notice_event_types = NoticeEventType.objects.all()
+        notice_event_types = NoticeEventType.objects.distinct().filter(
+            query_range_notice_event & Q(notice_events__notice__owner=user)).all()
+
         notices = (
             Notice.objects.distinct()
             .filter(query_range_notice_event & query_owner)
@@ -78,11 +95,17 @@ class ReportPDF(generics.RetrieveAPIView):
         notice_events = NoticeEvent.objects.filter(
             query_range & query_owner_notice
         ).all()
+
+        # survey_event_types = SurveyEventType.objects.all()
+        survey_event_types = SurveyEventType.objects.distinct().filter(
+            Q(survey_events__date__range=[start_date, end_date]) & Q(survey_events__owner=user)).all()
         survey_events = user.surveys.filter(query_range & query_owner).all()
+
         activitys = user.activitys.filter(query_range & query_owner).all()
 
         context = {
             "user": user,
+            "include_analytic_data": include_analytic_data,
             "today": date.today(),
             "reference": start_date,
             "notice_event_types": notice_event_types,
@@ -490,10 +513,11 @@ class VARequestDocx(generics.RetrieveAPIView):
                                     "endereço: " + address_string,
                                 )
 
+                            # "n° " + report_number,
                             if "numero_VA" in r.text:
                                 r.text = r.text.replace(
                                     "numero_VA",
-                                    "n° " + report_number,
+                                    "n° " + vistoria_administrativa.identification,
                                 )
 
                             if "lista_de_autos" in r.text:

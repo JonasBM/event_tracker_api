@@ -75,8 +75,9 @@ def download_from_geoitajai(log, file_path, r):
     if not os.path.exists(file_path):
         try:
             print("Salvando em", os.path.abspath(file_path))
+            log.state = 11
             log.datetime = timezone.now()
-            log.status = "salvando"
+            log.status = "Salvando"
             log.response = "Salvando em", os.path.abspath(file_path)
             log.save()
             with open(file_path, "wb") as f:
@@ -86,11 +87,13 @@ def download_from_geoitajai(log, file_path, r):
                         f.flush()
                         os.fsync(f.fileno())
             print("Salvo em", os.path.abspath(file_path))
+            log.state = 19
             log.datetime = timezone.now()
-            log.status = "salvo"
+            log.status = "Salvo"
             log.response = "salvo em", os.path.abspath(file_path)
             log.save()
         except Exception as e:
+            log.state = 0
             log.datetime = timezone.now()
             log.status = "Falha ao salvar"
             log.response = (
@@ -102,8 +105,9 @@ def download_from_geoitajai(log, file_path, r):
             os.remove(file_path)
     else:
         print("Existe em", os.path.abspath(file_path))
+        log.state = 19
         log.datetime = timezone.now()
-        log.status = "existente"
+        log.status = "Existente"
         log.response = "Existe em", os.path.abspath(file_path)
         log.save()
     return True
@@ -112,17 +116,25 @@ def download_from_geoitajai(log, file_path, r):
 def read_from_geoitajai(log, file_path, r):
     try:
         print("Lendo arquivo compactado")
+        log.state = 20
         log.datetime = timezone.now()
-        log.status = "lendo"
+        log.status = "Lendo"
         log.response = "Lendo arquivo compactado"
+        log.total = 0
+        log.inalterados = 0
+        log.alterados = 0
+        log.novos = 0
+        log.progresso = 0
         log.save()
         with ZipFile(file_path, "r") as zip:
             total = 0
             inalterados = 0
             alterados = 0
             novos = 0
-            print(len(zip.infolist()))
+            total_files = len(zip.infolist())
+            count_files = 0
             for zipfileInfo in zip.infolist():
+                count_files += 1
                 if zipfileInfo.filename.startswith(
                     "geo-master/data/divisaolotes/exportTabela/"
                 ) and zipfileInfo.filename.endswith(".geojson"):
@@ -139,11 +151,13 @@ def read_from_geoitajai(log, file_path, r):
                     data = json.loads(zip.read(zipfileInfo).decode("utf8"))
                     for instance in data:
                         if total % 100 == 0:
+                            log.state = 21
                             log.datetime = timezone.now()
                             log.total = total
                             log.inalterados = inalterados
                             log.alterados = alterados
                             log.novos = novos
+                            log.progresso = count_files / total_files
                             log.save()
                         total += 1
                         imovel_data = {
@@ -184,11 +198,19 @@ def read_from_geoitajai(log, file_path, r):
                             "updated": timezone.now(),
                             "filedatetime": filedatetime,
                         }
+                        
                         imovel = Imovel.objects.filter(
                             inscricao_imobiliaria=instance["properties"][
                                 "ninscrao"
                             ]
                         ).first()
+                        if not imovel:
+                            imovel = Imovel.objects.filter(
+                                codigo=instance["properties"][
+                                    "ncodimov"
+                                ]
+                            ).first()
+                            
                         if not imovel:
                             novos += 1
                             imovel = Imovel(**imovel_data)
@@ -204,6 +226,8 @@ def read_from_geoitajai(log, file_path, r):
                         update_cep_imovel(imovel)
     except Exception as e:
         print("Falha ao ler arquivo compactado")
+        print(str(e))
+        log.state = 0
         log.datetime = timezone.now()
         log.status = "Falha ao ler"
         log.response = str(e)
@@ -217,13 +241,13 @@ def read_from_geoitajai(log, file_path, r):
         "novos: " + str(novos),
     )
     print("Done!")
-
+    log.state = 99
     log.datetime = timezone.now()
     log.total = total
     log.inalterados = inalterados
     log.alterados = alterados
     log.novos = novos
-    log.status = "finalizado"
+    log.status = "Finalizado"
     log.response = (
         "Imóveis atualizados ("
         + str(novos)
@@ -250,20 +274,25 @@ def update_cep_imovel(imovel):
         "/localidade_logradouro"
         "/carrega-localidade-logradouro.php"
     )
+    logradouro = ''
+    if imovel.logradouro:
+        logradouro = imovel.logradouro.lower().strip()
+        if logradouro.startswith("r."):
+            logradouro = logradouro.replace("r.", "", 1).strip()
+        if logradouro.startswith("av."):
+            logradouro = logradouro.replace("av.", "", 1).strip()
+        if logradouro.endswith("bc."):
+            logradouro = "".join(logradouro.rsplit("bc.", 1)).strip()
+        if logradouro.endswith("jr"):
+            logradouro = "".join(logradouro.rsplit("jr", 1)).strip()
 
-    logradouro = imovel.logradouro.lower().strip()
-    if logradouro.startswith("r."):
-        logradouro = logradouro.replace("r.", "", 1).strip()
-    if logradouro.startswith("av."):
-        logradouro = logradouro.replace("av.", "", 1).strip()
-    if logradouro.endswith("jr"):
-        logradouro = "".join(logradouro.rsplit("jr", 1)).strip()
-
-    numero = imovel.numero.lower().strip()
-    if numero.startswith("n"):
-        numero = numero.replace("n", "", 1).strip()
-    if numero == "s/n":
-        numero = ""
+    numero = ''
+    if imovel.numero:
+        numero = imovel.numero.lower().strip()
+        if numero.startswith("n"):
+            numero = numero.replace("n", "", 1).strip()
+        if numero == "s/n":
+            numero = ""
 
     data = {
         "uf": "SC",
@@ -367,6 +396,8 @@ def update_cep():
                     logradouro = logradouro.replace("r.", "", 1).strip()
                 if logradouro.startswith("av."):
                     logradouro = logradouro.replace("av.", "", 1).strip()
+                if logradouro.endswith("bc."):
+                    logradouro = "".join(logradouro.rsplit("bc.", 1)).strip()
                 if logradouro.endswith("jr"):
                     logradouro = "".join(logradouro.rsplit("jr", 1)).strip()
 
@@ -494,6 +525,7 @@ class migrate_from_geoitajai(generics.RetrieveAPIView):
             default_imovel_geoitajai()
             print("baixando arquivo")
             log = ImovelUpdateLog(
+                state=10,
                 datetime_started=timezone.now(),
                 datetime=timezone.now(),
                 status="baixando",
@@ -517,13 +549,13 @@ class migrate_from_geoitajai(generics.RetrieveAPIView):
                         r.status_code, r.text
                     )
                 )
-
+                log.state = 0
                 log.datetime = timezone.now()
                 log.total = 0
                 log.inalterados = 0
                 log.alterados = 0
                 log.novos = 0
-                log.status = "falhou"
+                log.status = "Falhou"
                 log.response = "Download failed: status code {}\n{}".format(
                     r.status_code, r.text
                 )
