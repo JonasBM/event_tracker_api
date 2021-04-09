@@ -5,6 +5,11 @@ from django.utils import timezone
 from eventapp.utils import text_to_id
 
 
+def getDefaultImovel():
+    default_imovel = Imovel.objects.filter(codigo="000000").first()
+    return default_imovel
+
+
 class Profile(models.Model):
     user = models.OneToOneField(
         User, related_name="profile", on_delete=models.CASCADE, unique=True
@@ -117,6 +122,9 @@ class Imovel(models.Model):
             string += " - " + self.bairro
         return string
 
+    class Meta:
+        ordering = ["codigo", "id"]
+
 
 # ====NOTICES====
 class Notice(models.Model):
@@ -170,6 +178,7 @@ class NoticeEventType(models.Model):
     show_report_number = models.BooleanField(default=False)
     show_deadline = models.BooleanField(default=True)
     show_fine = models.BooleanField(default=False)
+    show_appeal = models.BooleanField(default=False)
     show_start = models.BooleanField(default=True)
 
     class Meta:
@@ -181,6 +190,34 @@ class NoticeEventType(models.Model):
     @property
     def name_to_id(self):
         return text_to_id(self.name)
+
+
+def auto_directory_path(instance, filename):
+    return 'notices/'+filename
+
+
+class NoticeEventTypeFile(models.Model):
+    order = models.PositiveSmallIntegerField(unique=True)
+    name = models.CharField(max_length=255)
+    file_doc = models.FileField(upload_to=auto_directory_path)
+    notice_event_type = models.ForeignKey(
+        NoticeEventType, related_name="notice_files", on_delete=models.CASCADE
+    )
+
+    class Meta:
+        ordering = ["order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name", "notice_event_type"], name="unique_name_per_type"
+            )
+        ]
+
+    def __str__(self):
+        return str(self.order) + "-" + self.name
+
+    @property
+    def name_to_id(self):
+        return text_to_id("Auto " + self.notice_event_type.name.upper() + "_" + str(self.order) + "-" + self.name)
 
 
 class NoticeColor(models.Model):
@@ -238,6 +275,12 @@ class NoticeEvent(models.Model):
             "notice_deadline_" + self.notice_event_type.name_to_id + "_color"
         )
 
+    def is_frozen(self):
+        for notice_appeals in self.notice_appeals.all():
+            if (notice_appeals.end_date is None or notice_appeals.end_date == ""):
+                return True
+        return False
+
 
 class NoticeFine(models.Model):
     identification = models.CharField(
@@ -253,6 +296,27 @@ class NoticeFine(models.Model):
 
     def __str__(self):
         return str(self.date) + " - " + str(self.identification)
+
+
+class NoticeAppeal(models.Model):
+    identification = models.CharField(
+        max_length=255, null=True, blank=True, default=""
+    )
+    start_date = models.DateField(default=timezone.now)
+    notice_event = models.ForeignKey(
+        NoticeEvent, related_name="notice_appeals", on_delete=models.CASCADE
+    )
+    end_date = models.DateField(null=True, blank=True)
+    extension = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["notice_event", "start_date", "id"]
+
+    def __str__(self):
+        return str(self.date) + " - " + str(self.identification)
+
+    def is_frozen(self):
+        return (self.end_date is None or self.end_date != "")
 
 
 # ====SURVEYS====
@@ -308,6 +372,61 @@ class SurveyEvent(models.Model):
 
     def css_class_name(self):
         return "survey_" + self.survey_event_type.name_to_id + "_color"
+
+
+# ====REPORTS====
+class ReportEventType(models.Model):
+    order = models.PositiveSmallIntegerField(unique=True)
+    name = models.CharField(max_length=255, unique=True)
+    short_name = models.CharField(max_length=255, unique=True)
+    css_color = models.CharField(max_length=10, null=True)
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self):
+        return str(self.id) + "-" + self.name
+
+    @property
+    def name_to_id(self):
+        return text_to_id(self.short_name)
+
+
+class ReportEvent(models.Model):
+    imovel = models.ForeignKey(
+        Imovel,
+        related_name="report_events",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    document = models.CharField(
+        max_length=255, null=True, blank=True, default=""
+    )
+    identification = models.CharField(
+        max_length=255, null=True, blank=True, default=""
+    )
+    date = models.DateField(default=timezone.now)
+    report_event_type = models.ForeignKey(
+        ReportEventType, related_name="report_events", on_delete=models.CASCADE
+    )
+    address = models.CharField(
+        max_length=255, null=True, blank=True, default=""
+    )
+    description = models.TextField(null=True, blank=True, default="")
+    concluded = models.BooleanField(default=False)
+    owner = models.ForeignKey(
+        User, related_name="reports", on_delete=models.CASCADE
+    )
+
+    class Meta:
+        ordering = ["date", "report_event_type", "id"]
+
+    def __str__(self):
+        return str(self.date)
+
+    def css_class_name(self):
+        return "report_" + self.report_event_type.name_to_id + "_color"
 
 
 # ====Atividades====

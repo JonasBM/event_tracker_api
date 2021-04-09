@@ -7,7 +7,7 @@ from datetime import date
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.template.loader import get_template
 from django.utils import timezone
 from docx import Document
@@ -16,8 +16,9 @@ from eventapp.models import (
     NoticeEvent,
     NoticeEventType,
     SurveyEventType,
+    NoticeEventTypeFile,
 )
-from eventapp.utils import getDateFromString
+from eventapp.utils import getDateFromString, docxFromTemplate
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from xhtml2pdf import pisa
@@ -461,10 +462,8 @@ class VARequestDocx(generics.RetrieveAPIView):
                 first_notice_event = (
                     notice.notice_events.order_by("-date").all().first()
                 )
-                file_path = (
-                    settings.STATIC_ROOT + "//relatorio_padrao//va_padrao.docx"
-                )
-
+                file_path = os.path.join(
+                    settings.MEDIA_ROOT, "relatorio_padrao", "va_padrao.docx")
                 report_number = "XXX/"
                 report_number += timezone.localtime(timezone.now()).strftime(
                     "%Y"
@@ -694,6 +693,120 @@ class VARequestDocx(generics.RetrieveAPIView):
                 ] = "attachment; filename=download.docx"
                 document.save(response)
 
+                return response
+
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class FileVARequestDocx(generics.ListCreateAPIView):
+    permission_classes = [
+        permissions.IsAdminUser,
+    ]
+
+    def get(self, request, *args, **kwargs):
+        file_path = os.path.join(
+            settings.MEDIA_ROOT, "relatorio_padrao", "va_padrao.docx")
+        print(file_path)
+        if os.path.exists(file_path):
+            document = Document(file_path)
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            response['Content-Disposition'] = 'attachment; filename=download.docx'
+            document.save(response)
+            return response
+        raise Http404
+
+    def post(self, request, *args, **kwargs):
+        print(request.FILES['rf_padrao'])
+        file_path = os.path.join(
+            settings.MEDIA_ROOT, "relatorio_padrao", "va_padrao_upload.docx")
+        with open(file_path, 'wb+') as destination:
+            for chunk in request.FILES['rf_padrao'].chunks():
+                destination.write(chunk)
+
+        return Response(status=204)
+
+
+class downloadNotification(generics.RetrieveAPIView):
+    permission_classes = [
+        permissions.IsAuthenticated,
+    ]
+
+    def get(self, request, *args, **kwargs):
+
+        locale.setlocale(locale.LC_TIME, "pt_BR")
+
+        notice_event_reference = self.request.query_params.get(
+            "notice_event_reference", None
+        )
+
+        notice_event_type_file_id = self.request.query_params.get(
+            "notice_event_type_file_id", None
+        )
+        notice_event_type_file = None
+        if notice_event_type_file_id:
+            notice_event_type_file = NoticeEventTypeFile.objects.filter(
+                id=notice_event_type_file_id
+            ).first()
+
+        notice_event_id = self.request.query_params.get(
+            "notice_event_id", None
+        )
+        notice_event = None
+        if notice_event_id:
+            notice_event = NoticeEvent.objects.filter(
+                id=notice_event_id
+            ).first()
+
+        if notice_event_type_file and notice_event:
+            file_path = notice_event_type_file.file_doc.path
+
+            user = notice_event.notice.owner
+
+            address_string = ""
+            if notice_event.notice.imovel.logradouro:
+                address_string = notice_event.notice.imovel.logradouro
+            if notice_event.notice.imovel.numero:
+                address_string += (
+                    ", n" + notice_event.notice.imovel.numero
+                )
+            if notice_event.notice.imovel.complemento:
+                address_string += (
+                    ", " + notice_event.notice.imovel.complemento
+                )
+            if notice_event.notice.imovel.bairro:
+                address_string += (
+                    " - " + notice_event.notice.imovel.bairro
+                )
+
+            def toUpperCasoOrNone(string):
+                if string:
+                    return str(string).upper()
+                return None
+
+            print(toUpperCasoOrNone(notice_event.notice.document))
+
+            context = {
+                "data_atual": timezone.localtime(timezone.now()).strftime("%d/%m/%Y"),
+                "data_atual_por_extenso": timezone.localtime(timezone.now()).strftime("%d de %B de %Y"),
+                "afm_nome_completo":  toUpperCasoOrNone(user.get_full_name()),
+                "afm_matricula": toUpperCasoOrNone(user.profile.matricula),
+                "auto_identificacao": toUpperCasoOrNone(notice_event.identification),
+                "auto_data": notice_event.date.strftime("%d/%m/%Y"),
+                "auto_data_por_extenso": notice_event.date.strftime("%d de %B de %Y"),
+                "auto_documento": toUpperCasoOrNone(notice_event.notice.document),
+                "auto_tipo": toUpperCasoOrNone(notice_event.notice_event_type),
+                "imovel_razao_social": toUpperCasoOrNone(notice_event.notice.imovel.razao_social),
+                "imovel_inscricao": toUpperCasoOrNone(notice_event.notice.imovel.inscricao_imobiliaria),
+                "imovel_endereco_completo": toUpperCasoOrNone(address_string),
+                "auto_descumprido": toUpperCasoOrNone(notice_event_reference),
+            }
+            document = docxFromTemplate(file_path, context)
+            if document:
+                response = HttpResponse(content_type=(
+                    "application/""vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                response["Content-Disposition"] = "attachment; filename=download.docx"
+                document.save(response)
                 return response
 
         return Response(status=status.HTTP_400_BAD_REQUEST)

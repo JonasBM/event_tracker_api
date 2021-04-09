@@ -11,5 +11,8 @@
   ],
   "python.linting.flake8Enabled": true,
   "python.formatting.blackArgs": ["--line-length", "79"],
-  "python.linting.flake8Args": ["--max-line-length=120"]
+  "python.linting.flake8Args": [
+    "--max-line-length=120"
+  ],
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
 }

@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 import json
 import os
 from datetime import datetime
@@ -6,7 +7,6 @@ from zipfile import ZipFile
 import requests
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.http import HttpResponse
 from django.utils import timezone
 from eventapp.models import Imovel, ImovelUpdateLog, Notice
 from eventapp.serializers import (
@@ -198,7 +198,7 @@ def read_from_geoitajai(log, file_path, r):
                             "updated": timezone.now(),
                             "filedatetime": filedatetime,
                         }
-                        
+
                         imovel = Imovel.objects.filter(
                             inscricao_imobiliaria=instance["properties"][
                                 "ninscrao"
@@ -210,7 +210,7 @@ def read_from_geoitajai(log, file_path, r):
                                     "ncodimov"
                                 ]
                             ).first()
-                            
+
                         if not imovel:
                             novos += 1
                             imovel = Imovel(**imovel_data)

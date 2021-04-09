@@ -6,17 +6,23 @@ from eventapp.models import (
     Notice,
     NoticeColor,
     NoticeEventType,
+    NoticeEventTypeFile,
     SurveyEvent,
     SurveyEventType,
+    ReportEvent,
+    ReportEventType,
 )
 from eventapp.serializers import (
     ActivitySerializer,
     ImovelSerializer,
     NoticeColorSerializer,
     NoticeEventTypeSerializer,
+    NoticeEventTypeFileSerializer,
     NoticeSerializer,
     SurveyEventSerializer,
     SurveyEventTypeSerializer,
+    ReportEventSerializer,
+    ReportEventTypeSerializer,
     UserProfileSerializer,
     UserSerializer,
 )
@@ -29,6 +35,7 @@ from eventapp.views.permissions import (
 from rest_framework import permissions, status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 class UserProfileViewSet(viewsets.ModelViewSet):
@@ -193,7 +200,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
                 .all()
             )
         else:
-            return queryset.all()
+            return queryset.order_by('codigo').all()
 
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
@@ -225,6 +232,15 @@ class NoticeEventTypeViewSet(viewsets.ModelViewSet):
     queryset = NoticeEventType.objects.all()
 
 
+class NoticeEventTypeFileViewSet(viewsets.ModelViewSet):
+    permission_classes = [
+        IsAdminUserOrIsAuthenticatedReadOnly,
+    ]
+    parser_classes = (MultiPartParser, FormParser)
+    serializer_class = NoticeEventTypeFileSerializer
+    queryset = NoticeEventTypeFile.objects.all()
+
+
 class NoticeColorViewSet(viewsets.ModelViewSet):
     permission_classes = [
         IsAdminUserOrIsAuthenticatedReadOnly,
@@ -239,6 +255,14 @@ class SurveyEventTypeViewSet(viewsets.ModelViewSet):
     ]
     serializer_class = SurveyEventTypeSerializer
     queryset = SurveyEventType.objects.all()
+
+
+class ReportEventTypeViewSet(viewsets.ModelViewSet):
+    permission_classes = [
+        IsAdminUserOrIsAuthenticatedReadOnly,
+    ]
+    serializer_class = ReportEventTypeSerializer
+    queryset = ReportEventType.objects.all()
 
 
 class UserNoticeViewSet(viewsets.ModelViewSet):
@@ -397,6 +421,80 @@ class UserSurveyEventViewSet(viewsets.ModelViewSet):
         if "imovel_id" not in request.data.keys():
             request.data["imovel_id"] = 0
         return super(UserSurveyEventViewSet, self).update(
+            request, *args, **kwargs
+        )
+
+
+class UserReportEventViewSet(viewsets.ModelViewSet):
+    permission_classes = [
+        IsOwnerOrIsAuthenticatedReadOnly,
+    ]
+    serializer_class = ReportEventSerializer
+
+    def get_queryset(self):
+
+        start_date = getDateFromString(
+            self.request.query_params.get("start_date", None)
+        )
+        end_date = getDateFromString(
+            self.request.query_params.get("end_date", None)
+        )
+
+        queryset = ReportEvent.objects
+
+        if start_date and end_date:
+            query_report = Q(date__range=[start_date, end_date])
+            queryset = queryset.distinct().filter(query_report)
+        elif start_date:
+            query_report = Q(date__gte=start_date)
+            queryset = queryset.distinct().filter(query_report)
+        elif end_date:
+            query_report = Q(date__lte=end_date)
+            queryset = queryset.distinct().filter(query_report)
+
+        imovel_id = self.request.query_params.get("imovel_id", None)
+        if imovel_id:
+            queryset = queryset.filter(imovel_id=imovel_id)
+
+        identification = self.request.query_params.get("identification", None)
+        if identification:
+            queryset = queryset.filter(
+                identification__unaccent__icontains=identification
+            )
+
+        document = self.request.query_params.get("document", None)
+        if document:
+            queryset = queryset.filter(document__unaccent__icontains=document)
+
+        concluded = self.request.query_params.get("concluded", None)
+        if concluded == "0":
+            queryset = queryset.filter(concluded=False)
+        elif concluded == "1":
+            queryset = queryset.filter(concluded=True)
+
+        unfinished = self.request.query_params.get("unfinished", None)
+        if unfinished:
+            queryset = queryset.distinct().filter(concluded=False)
+
+        incompatible = self.request.query_params.get("incompatible", None)
+        if incompatible:
+            queryset = ReportEvent.objects.filter(Q(imovel_id=None))
+
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        request.data["owner"] = request.user.id
+        if "imovel_id" not in request.data.keys():
+            request.data["imovel_id"] = 0
+        return super(UserReportEventViewSet, self).create(
+            request, *args, **kwargs
+        )
+
+    def update(self, request, *args, **kwargs):
+        request.data["owner"] = request.user.id
+        if "imovel_id" not in request.data.keys():
+            request.data["imovel_id"] = 0
+        return super(UserReportEventViewSet, self).update(
             request, *args, **kwargs
         )
 

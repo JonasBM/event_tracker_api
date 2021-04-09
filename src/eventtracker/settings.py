@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "eventapp",
     "rest_framework",
     "knox",
+    "django_cleanup.apps.CleanupConfig",
 ]
 
 REST_FRAMEWORK = {

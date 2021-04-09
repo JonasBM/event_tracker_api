@@ -11,12 +11,19 @@ router.register(r"imovel", viewsets.ImovelViewSet, "imovel")
 router.register(
     r"noticeeventtype", viewsets.NoticeEventTypeViewSet, "noticeeventtype"
 )
+router.register(
+    r"noticeeventtypefile", viewsets.NoticeEventTypeFileViewSet, "noticeeventtypefile"
+)
 router.register(r"noticecolor", viewsets.NoticeColorViewSet, "noticecolor")
 router.register(
     r"surveyeventtype", viewsets.SurveyEventTypeViewSet, "surveyeventtype"
 )
+router.register(
+    r"reporteventtype", viewsets.ReportEventTypeViewSet, "reporteventtype"
+)
 router.register(r"notice", viewsets.UserNoticeViewSet, "notice")
 router.register(r"survey", viewsets.UserSurveyEventViewSet, "survey")
+router.register(r"report", viewsets.UserReportEventViewSet, "report")
 router.register(r"activity", viewsets.UserActivityViewSet, "activity")
 
 urlpatterns = [
@@ -49,6 +56,8 @@ urlpatterns += [
     path(r"sheetcsv/", documents.sheetCSV.as_view()),
     path(r"noticereportdocx/", documents.NoticeReportDocx.as_view()),
     path(r"varequestdocx/", documents.VARequestDocx.as_view()),
+    path(r"filevarequestdocx/", documents.FileVARequestDocx.as_view()),
+    path(r"downloadnotification/", documents.downloadNotification.as_view()),
 ]
 
 urlpatterns += router.urls

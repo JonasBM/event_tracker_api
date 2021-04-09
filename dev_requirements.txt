@@ -50,3 +50,4 @@ urllib3==1.26.2
 webencodings==0.5.1
 wrapt==1.12.1
 xhtml2pdf==0.2.5
+django-cleanup==5.1.0

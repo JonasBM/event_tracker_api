@@ -5,16 +5,21 @@ from eventapp.models import (
     Imovel,
     Notice,
     NoticeEventType,
+    NoticeEventTypeFile,
     NoticeColor,
     NoticeEvent,
     NoticeFine,
+    NoticeAppeal,
     SurveyEventType,
     SurveyEvent,
+    ReportEventType,
+    ReportEvent,
     Activity,
+    getDefaultImovel,
 )
 from django.contrib.auth.models import User
 
-from eventapp.utils import add_days
+from eventapp.utils import add_days, count_days
 from django.db import transaction
 
 
@@ -124,6 +129,12 @@ class ImovelUpdateLogSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class NoticeEventTypeFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NoticeEventTypeFile
+        fields = "__all__"
+
+
 class NoticeEventTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = NoticeEventType
@@ -135,6 +146,24 @@ class NoticeColorSerializer(serializers.ModelSerializer):
         model = NoticeColor
         fields = ("id", "css_color", "notice_event_types", "css_name")
         read_only_fields = ("css_name",)
+
+
+class NoticeAppealSerializer(serializers.ModelSerializer):
+    start_date = serializers.DateField(format="%Y-%m-%d")
+    end_date = serializers.DateField(
+        format="%Y-%m-%d", required=False, allow_null=True)
+    id = serializers.IntegerField(required=False)
+
+    def to_internal_value(self, data):
+        if "end_date" in data.keys():
+            if data['end_date'] == '':
+                data['end_date'] = None
+        return super(NoticeAppealSerializer, self).to_internal_value(data)
+
+    class Meta:
+        model = NoticeAppeal
+        fields = "__all__"
+        read_only_fields = ("notice_event",)
 
 
 class NoticeFineSerializer(serializers.ModelSerializer):
@@ -149,6 +178,7 @@ class NoticeFineSerializer(serializers.ModelSerializer):
 
 class NoticeEventSerializer(serializers.ModelSerializer):
     notice_fines = NoticeFineSerializer(many=True, required=False)
+    notice_appeals = NoticeAppealSerializer(many=True, required=False)
     deadline_date = serializers.DateField(format="%Y-%m-%d", required=False)
     id = serializers.IntegerField(required=False)
 
@@ -166,8 +196,11 @@ class NoticeEventSerializer(serializers.ModelSerializer):
             "deadline_date",
             "concluded",
             "notice_fines",
+            "notice_appeals",
+            "is_frozen",
         )
         read_only_fields = (
+            "is_frozen",
             "notice",
             "deadline_date",
         )
@@ -182,14 +215,32 @@ def update_or_create_multiple_notice_events(
             notice_fines_data = notice_event.pop("notice_fines")
         else:
             notice_fines_data = []
+        if "notice_appeals" in notice_event.keys():
+            notice_appeals_data = notice_event.pop("notice_appeals")
+        else:
+            notice_appeals_data = []
         if "id" in notice_event.keys():
             id = notice_event.pop("id")
         else:
             id = 0
 
+        extensions = 0
+
+        print("notice_appeals_data: "+str(notice_appeals_data))
+        for notice_appeal in notice_appeals_data:
+            if "extension" in notice_appeal.keys():
+                print("extension: "+str(notice_appeal["extension"]))
+                extensions += notice_appeal["extension"]
+            if "start_date" in notice_appeal.keys() and "end_date" in notice_appeal.keys():
+                teste = count_days(notice_appeal["start_date"],
+                                   notice_appeal["end_date"], notice_event["deadline_working_days"])
+                extensions += count_days(notice_appeal["start_date"],
+                                         notice_appeal["end_date"], notice_event["deadline_working_days"])
+                print("count: "+str(teste))
+
         deadline_date = add_days(
             notice_event["date"],
-            notice_event["deadline"],
+            (notice_event["deadline"]+extensions),
             notice_event["deadline_working_days"],
         )
 
@@ -211,6 +262,10 @@ def update_or_create_multiple_notice_events(
         # ====FINES====
         update_or_create_multiple_notice_fines(
             notice_event_instance, notice_fines_data, force_create
+        )
+        # ====APPEALS====
+        update_or_create_multiple_notice_appeals(
+            notice_event_instance, notice_appeals_data, force_create
         )
     for notice_event in notice.notice_events.all():
         if notice_event.id not in keep_notice_event:
@@ -239,6 +294,30 @@ def update_or_create_multiple_notice_fines(
     for notice_fine in notice_event.notice_fines.all():
         if notice_fine.id not in keep_fine_event:
             notice_fine.delete()
+
+
+def update_or_create_multiple_notice_appeals(
+    notice_event, notice_appeals_data, force_create=False
+):
+    keep_appeals_event = []
+    for notice_appeals in notice_appeals_data:
+        if "id" in notice_appeals.keys():
+            id = notice_appeals.pop("id")
+        else:
+            id = 0
+        notice_appeals_instance = NoticeAppeal.objects.filter(id=id).first()
+        if notice_appeals_instance is not None and id != 0 and not force_create:
+            for attr, value in notice_appeals.items():
+                setattr(notice_appeals_instance, attr, value)
+            notice_appeals_instance.save()
+        else:
+            notice_appeals_instance = NoticeAppeal.objects.create(
+                **notice_appeals, notice_event=notice_event
+            )
+        keep_appeals_event.append(notice_appeals_instance.id)
+    for notice_appeals in notice_event.notice_appeals.all():
+        if notice_appeals.id not in keep_appeals_event:
+            notice_appeals.delete()
 
 
 class NoticeSerializer(serializers.ModelSerializer):
@@ -271,7 +350,8 @@ class NoticeSerializer(serializers.ModelSerializer):
             notice_events_data = []
         if "imovel_id" in validated_data.keys():
             if validated_data["imovel_id"] == 0:
-                validated_data["imovel_id"] = None
+                validated_data["imovel_id"] = getDefaultImovel().id
+
         notice = Notice.objects.create(**validated_data)
         # ====NOTICE_EVENTS====
         update_or_create_multiple_notice_events(
@@ -291,7 +371,7 @@ class NoticeSerializer(serializers.ModelSerializer):
             notice_events_data = []
         if "imovel_id" in validated_data.keys():
             if validated_data["imovel_id"] == 0:
-                validated_data["imovel_id"] = None
+                validated_data["imovel_id"] = getDefaultImovel().id
         Notice.objects.filter(id=instance.id).update(**validated_data)
         notice = Notice.objects.get(id=instance.id)
         # ====NOTICE_EVENTS====
@@ -335,16 +415,60 @@ class SurveyEventSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         if "imovel_id" in validated_data.keys():
             if validated_data["imovel_id"] == 0:
-                validated_data["imovel_id"] = ""
+                validated_data["imovel_id"] = getDefaultImovel().id
         return SurveyEvent.objects.create(**validated_data)
 
     @transaction.atomic
     def update(self, instance, validated_data):
         if "imovel_id" in validated_data.keys():
             if validated_data["imovel_id"] == 0:
-                validated_data["imovel_id"] = ""
+                validated_data["imovel_id"] = getDefaultImovel().id
         SurveyEvent.objects.filter(id=instance.id).update(**validated_data)
         return SurveyEvent.objects.get(id=instance.id)
+
+
+class ReportEventTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReportEventType
+        fields = "__all__"
+
+
+class ReportEventSerializer(serializers.ModelSerializer):
+
+    imovel = ImovelSerializer(many=False, read_only=True)
+    date = serializers.DateField(format="%Y-%m-%d")
+    imovel_id = serializers.IntegerField()
+
+    class Meta:
+        model = ReportEvent
+        fields = (
+            "id",
+            "imovel",
+            "imovel_id",
+            "document",
+            "identification",
+            "date",
+            "report_event_type",
+            "address",
+            "description",
+            "concluded",
+            "owner",
+        )
+
+    @transaction.atomic
+    def create(self, validated_data):
+        if "imovel_id" in validated_data.keys():
+            if validated_data["imovel_id"] == 0:
+                validated_data["imovel_id"] = getDefaultImovel().id
+        return ReportEvent.objects.create(**validated_data)
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        if "imovel_id" in validated_data.keys():
+            if validated_data["imovel_id"] == 0:
+                validated_data["imovel_id"] = getDefaultImovel().id
+        ReportEvent.objects.filter(id=instance.id).update(**validated_data)
+        return ReportEvent.objects.get(id=instance.id)
 
 
 class ActivitySerializer(serializers.ModelSerializer):

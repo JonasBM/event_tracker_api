@@ -1,6 +1,9 @@
 import re
+import os
 import unicodedata
 from datetime import date, timedelta
+
+from docx import Document
 
 
 def getDateFromString(stringDate):
@@ -60,6 +63,15 @@ def add_days(from_date, number_of_days, business_days=False):
     return to_date
 
 
+def count_days(from_date, to_date, business_days=False):
+    number_of_days = 0
+    while from_date < to_date:
+        from_date += timedelta(1)
+        if from_date.weekday() < 5 or not business_days:
+            number_of_days += 1
+    return number_of_days
+
+
 def add_month(data):
     month = data.month + 1
     year = data.year
@@ -76,3 +88,33 @@ def sub_month(data):
         month = 12
         year = data.year - 1
     return date(year, month, data.day)
+
+
+def docxFromTemplate(file_path, context):
+    if os.path.exists(file_path):
+        print(context)
+        document = Document(file_path)
+
+        for p in document.paragraphs:
+            for r in p.runs:
+                for key, value in context.items():
+                    if key in r.text:
+                        if value:
+                            r.text = r.text.replace(key, value)
+                        else:
+                            r.text = r.text.replace(key, "")
+
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        for r in p.runs:
+                            for key, value in context.items():
+                                if key in r.text:
+                                    if value:
+                                        r.text = r.text.replace(key, value)
+                                    else:
+                                        r.text = r.text.replace(key, " ")
+
+        return document
+    return None

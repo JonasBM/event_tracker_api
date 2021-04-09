@@ -6,10 +6,14 @@ from eventapp.models import (
     Notice,
     NoticeEvent,
     NoticeEventType,
+    NoticeEventTypeFile,
     NoticeColor,
     NoticeFine,
+    NoticeAppeal,
     SurveyEvent,
     SurveyEventType,
+    ReportEvent,
+    ReportEventType,
     Activity,
 )
 
@@ -25,8 +29,10 @@ class NoticeAdmin(admin.ModelAdmin):
 admin.site.register(Notice, NoticeAdmin)
 admin.site.register(NoticeEvent)
 admin.site.register(NoticeEventType)
+admin.site.register(NoticeEventTypeFile)
 admin.site.register(NoticeColor)
 admin.site.register(NoticeFine)
+admin.site.register(NoticeAppeal)
 
 
 class SurveyEventAdmin(admin.ModelAdmin):
@@ -35,5 +41,13 @@ class SurveyEventAdmin(admin.ModelAdmin):
 
 admin.site.register(SurveyEvent, SurveyEventAdmin)
 admin.site.register(SurveyEventType)
+
+
+class ReportEventAdmin(admin.ModelAdmin):
+    raw_id_fields = ("imovel",)
+
+
+admin.site.register(ReportEvent, ReportEventAdmin)
+admin.site.register(ReportEventType)
 
 admin.site.register(Activity)
