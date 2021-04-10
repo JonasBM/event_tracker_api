@@ -328,7 +328,7 @@ class NoticeReportDocx(generics.RetrieveAPIView):
                     notice.notice_events.order_by("-date").all().first()
                 )
                 file_path = (
-                    settings.STATIC_ROOT + "//relatorio_padrao//rf_padrao.docx"
+                    settings.MEDIA_ROOT + "//relatorio_padrao//rf_padrao.docx"
                 )
                 vistoria_administrativa = notice.notice_events.filter(
                     notice_event_type__name="Vistoria Administrativa"
