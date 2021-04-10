@@ -95,7 +95,7 @@
   </div>
 
   <div id="header_content_span">
-    <span> RELATÓRIO DE ATIVIDADES ({{today|date:"d/m/Y"}})</span>
+    <span> RELATÓRIO DE DESEMPENHO ({{today|date:"d/m/Y"}})</span>
   </div>
 
 
@@ -105,11 +105,9 @@
 
   <div>
     <br />
-    <h2 align="center">RELATÓRIO DE ATIVIDADES</h2>
+    <h2 align="center">RELATÓRIO DE DESEMPENHO</h2>
     <h6 align="center">
       Mês de referência: {{reference|date:"F \d\e Y"}} <br />
-      AFM: {{user.get_full_name}} <br />
-      Matrícula: {{user.profile.matricula}}
     </h6>
     <br />
     <div>
@@ -186,119 +184,6 @@
         {% endif %}
       {% endfor %}
     </div>
-	{% if include_analytic_data %}
-    <div>
-      <h2 align="left">2. RELATÓRIO ANALÍTICO</h2>
-      <div>
-        <h2 align="left">2.1. Autos</h2>
-        {% if notices.count > 0 %}
-        {% for notice in notices %}
-        <div>
-          <strong>Imóvel: {{notice.imovel.name_string}} </strong><br />
-          Complemento de endereço: {{notice.address}} <br />
-          Documento: {{notice.document}} <br />
-          Descrição: {{notice.description|linebreaksbr}} <br />
-          Grupo de autos do imóvel: <br />
-          <div style="padding-left:10px;">
-            {% for notice_event in notice.notice_events.all %}
-            <strong>{{notice_event.date|date:"d/m/Y"}} ({{notice_event.notice_event_type.name}}):</strong> <br />
-            <div style="padding-left:20px;">
-              Nº: {{notice_event.identification}} <br />
-
-              {% if notice_event.notice_event_type.show_report_number %}
-              Relatório fiscal: {{notice_event.report_number}} <br />
-              {% endif %}
-
-              {% if notice_event.notice_event_type.show_deadline %}
-              Prazo: {{notice_event.deadline_date}} <br />
-              {% endif %}
-
-              {% if notice_event.notice_event_type.show_concluded %}
-              {% if notice_event.concluded %}
-              Concluido: Sim <br />
-              {% else %}
-              Concluido: Não <br />
-              {% endif %}
-              {% endif %}
-
-              {% if notice_event.notice_event_type.show_fine %}
-              Multa: <br />
-              {% for notice_event in notice.notice_events.all %}
-              {{notice_event.notice_fines.date|date:"d/m/Y"}} - {{notice_event.notice_fines.identification}} <br />
-              {% endfor %}
-              {% endif %}
-            </div>
-            {% endfor %}
-          </div>
-          </p>
-          <br />
-          {% endfor %}
-          {% endif %}
-        </div>
-        <br />
-        <div>
-          <h2 align="left">2.2. Vistorias</h2>
-          {% if survey_events.count > 0 %}
-          {% for survey_event in survey_events %}
-          <p>
-            <strong>{{survey_event.date|date:"d/m/Y"}} ({{survey_event.survey_event_type.name}}):</strong> <br />
-            <strong>Imóvel: {{survey_event.imovel.name_string}} </strong><br />
-            Complemento de endereço: {{survey_event.address}} <br />
-            Documento: {{survey_event.document}} <br />
-            Identificação: {{survey_event.identification}} <br />
-            Descrição: {{survey_event.description|linebreaksbr}} <br />
-            {% if survey_event.concluded %}
-            Concluido: Sim <br />
-            {% else %}
-            Concluido: Não <br />
-            {% endif %}
-            <br />
-          </p>
-          {% endfor %}
-          {% endif %}
-        </div>
-        <br />
-        <div>
-          <h2 align="left">2.3. Relatórios</h2>
-          {% if report_events.count > 0 %}
-          {% for report_event in report_events %}
-          <p>
-            <strong>{{report_event.date|date:"d/m/Y"}} ({{report_event.report_event_type.name}}):</strong> <br />
-            <strong>Imóvel: {{report_event.imovel.name_string}} </strong><br />
-            Complemento de endereço: {{report_event.address}} <br />
-            Documento: {{report_event.document}} <br />
-            Identificação: {{report_event.identification}} <br />
-            Descrição: {{report_event.description|linebreaksbr}} <br />
-            {% if report_event.concluded %}
-            Concluido: Sim <br />
-            {% else %}
-            Concluido: Não <br />
-            {% endif %}
-            <br />
-          </p>
-          {% endfor %}
-          {% endif %}
-        </div>
-
-      </div>
-    </div>
-	{% endif %}
-	<div>
-      {% if include_analytic_data %}
-      <h2 align="left">3. ATIVIDADES</h2>
-	  {% else %}
-      <h2 align="left">2. ATIVIDADES</h2>
-	  {% endif %}
-	  <div>
-        <span>Total: {{activitys.count}}</span>
-        {% for activity in activitys %}
-        <p>
-          <strong>{{activity.date|date:"d/m/Y"}}:</strong> <br />
-          Descrição: <br />
-          {{activity.description|linebreaksbr}}
-        </p>
-        {% endfor %}
-	  </div>
 </body>
 
 </html>

@@ -53,10 +53,12 @@ urlpatterns = [
 
 urlpatterns += [
     path(r"reportpdf/", documents.ReportPDF.as_view()),
+    path(r"reportpdfall/", documents.ReportPDFAll.as_view()),
     path(r"sheetcsv/", documents.sheetCSV.as_view()),
     path(r"noticereportdocx/", documents.NoticeReportDocx.as_view()),
     path(r"varequestdocx/", documents.VARequestDocx.as_view()),
     path(r"filevarequestdocx/", documents.FileVARequestDocx.as_view()),
+    path(r"filerfrequestdocx/", documents.FileRFRequestDocx.as_view()),
     path(r"downloadnotification/", documents.downloadNotification.as_view()),
 ]
 

@@ -7,24 +7,19 @@ from datetime import date
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Q
-from django.http import HttpResponse, Http404
+from django.http import Http404, HttpResponse
 from django.template.loader import get_template
 from django.utils import timezone
 from docx import Document
-from eventapp.models import (
-    Notice,
-    NoticeEvent,
-    NoticeEventType,
-    SurveyEventType,
-    NoticeEventTypeFile,
-)
-from eventapp.utils import getDateFromString, docxFromTemplate
-from rest_framework import generics, permissions, status
-from rest_framework.response import Response
-from xhtml2pdf import pisa
 from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
+from eventapp.models import (Notice, NoticeEvent, NoticeEventType,
+                             NoticeEventTypeFile, SurveyEventType, SurveyEvent, ReportEventType, ReportEvent)
+from eventapp.utils import docxFromTemplate, getDateFromString
+from rest_framework import generics, permissions, serializers, status
+from rest_framework.response import Response
+from xhtml2pdf import pisa
 
 
 def render_pdf_from_html(
@@ -64,9 +59,6 @@ class ReportPDF(generics.RetrieveAPIView):
             else:
                 include_analytic_data = True
 
-        print(include_analytic_data)
-        print((type(include_analytic_data) is bool))
-
         month = self.request.query_params.get("month", None)
         if month:
             start_date = getDateFromString(month + "-01")
@@ -84,7 +76,6 @@ class ReportPDF(generics.RetrieveAPIView):
         query_range = Q(date__range=[start_date, end_date])
         query_owner = Q(owner=user)
 
-        # notice_event_types = NoticeEventType.objects.all()
         notice_event_types = NoticeEventType.objects.distinct().filter(
             query_range_notice_event & Q(notice_events__notice__owner=user)).all()
 
@@ -97,10 +88,13 @@ class ReportPDF(generics.RetrieveAPIView):
             query_range & query_owner_notice
         ).all()
 
-        # survey_event_types = SurveyEventType.objects.all()
         survey_event_types = SurveyEventType.objects.distinct().filter(
             Q(survey_events__date__range=[start_date, end_date]) & Q(survey_events__owner=user)).all()
         survey_events = user.surveys.filter(query_range & query_owner).all()
+
+        report_event_types = ReportEventType.objects.distinct().filter(
+            Q(report_events__date__range=[start_date, end_date]) & Q(report_events__owner=user)).all()
+        report_events = user.reports.filter(query_range & query_owner).all()
 
         activitys = user.activitys.filter(query_range & query_owner).all()
 
@@ -111,13 +105,78 @@ class ReportPDF(generics.RetrieveAPIView):
             "reference": start_date,
             "notice_event_types": notice_event_types,
             "survey_event_types": survey_event_types,
+            "report_event_types": report_event_types,
             "notices": notices,
             "notice_events": notice_events,
             "survey_events": survey_events,
+            "report_events": report_events,
             "activitys": activitys,
         }
         pdf = render_pdf_from_html(
             "pdf/relatorio.html", context, "relatorio.pdf"
+        )
+        return HttpResponse(pdf, content_type="application/pdf")
+
+
+class ReportPDFAll(generics.RetrieveAPIView):
+    permission_classes = [
+        permissions.IsAuthenticated,
+    ]
+
+    def get(self, request, *args, **kwargs):
+
+        month = self.request.query_params.get("month", None)
+        if month:
+            start_date = getDateFromString(month + "-01")
+            end_date = getDateFromString(
+                month
+                + "-"
+                + str(
+                    calendar.monthrange(start_date.year, start_date.month)[1]
+                )
+            )
+        query_range_notice_event = Q(
+            notice_events__date__range=[start_date, end_date]
+        )
+        query_owner_notice = Q(notice__owner__is_superuser=False)
+        query_range = Q(date__range=[start_date, end_date])
+        query_owner = Q(owner__is_superuser=False)
+
+        notice_event_types = NoticeEventType.objects.distinct().filter(
+            query_range_notice_event & Q(notice_events__notice__owner__is_superuser=False)).all()
+
+        notices = (
+            Notice.objects.distinct()
+            .filter(query_range_notice_event & query_owner)
+            .all()
+        )
+        notice_events = NoticeEvent.objects.filter(
+            query_range & query_owner_notice
+        ).all()
+
+        survey_event_types = SurveyEventType.objects.distinct().filter(
+            Q(survey_events__date__range=[start_date, end_date]) & Q(survey_events__owner__is_superuser=False)).all()
+        survey_events = SurveyEvent.objects.filter(
+            query_range & query_owner).all()
+
+        report_event_types = ReportEventType.objects.distinct().filter(
+            Q(report_events__date__range=[start_date, end_date]) & Q(report_events__owner__is_superuser=False)).all()
+        report_events = ReportEvent.objects.filter(
+            query_range & query_owner).all()
+
+        context = {
+            "today": date.today(),
+            "reference": start_date,
+            "notice_event_types": notice_event_types,
+            "survey_event_types": survey_event_types,
+            "report_event_types": report_event_types,
+            "notices": notices,
+            "notice_events": notice_events,
+            "survey_events": survey_events,
+            "report_events": report_events,
+        }
+        pdf = render_pdf_from_html(
+            "pdf/relatorio_geral.html", context, "relatorio_geral.pdf"
         )
         return HttpResponse(pdf, content_type="application/pdf")
 
@@ -694,7 +753,9 @@ class VARequestDocx(generics.RetrieveAPIView):
                 document.save(response)
 
                 return response
-
+        else:
+            raise serializers.ValidationError(
+                "vistoria_administrativa_id field required.")
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -706,7 +767,6 @@ class FileVARequestDocx(generics.ListCreateAPIView):
     def get(self, request, *args, **kwargs):
         file_path = os.path.join(
             settings.MEDIA_ROOT, "relatorio_padrao", "va_padrao.docx")
-        print(file_path)
         if os.path.exists(file_path):
             document = Document(file_path)
             response = HttpResponse(
@@ -717,14 +777,52 @@ class FileVARequestDocx(generics.ListCreateAPIView):
         raise Http404
 
     def post(self, request, *args, **kwargs):
-        print(request.FILES['rf_padrao'])
+        dest_dir = file_path = os.path.join(
+            settings.MEDIA_ROOT, "relatorio_padrao")
+        file_path = os.path.join(dest_dir, "va_padrao.docx")
+        file_path_backup = os.path.join(dest_dir, "va_padrao_backup.docx")
+        if os.path.exists(file_path):
+            if os.path.exists(file_path_backup):
+                os.remove(file_path_backup)
+            os.rename(file_path, file_path_backup)
+        with open(file_path, 'wb+') as destination:
+            for chunk in request.FILES['va_padrao'].chunks():
+                destination.write(chunk)
+            return Response({"detail": "Arquivo salvo com sucesso"}, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class FileRFRequestDocx(generics.ListCreateAPIView):
+    permission_classes = [
+        permissions.IsAdminUser,
+    ]
+
+    def get(self, request, *args, **kwargs):
         file_path = os.path.join(
-            settings.MEDIA_ROOT, "relatorio_padrao", "va_padrao_upload.docx")
+            settings.MEDIA_ROOT, "relatorio_padrao", "rf_padrao.docx")
+        if os.path.exists(file_path):
+            document = Document(file_path)
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            response['Content-Disposition'] = 'attachment; filename=download.docx'
+            document.save(response)
+            return response
+        raise Http404
+
+    def post(self, request, *args, **kwargs):
+        dest_dir = file_path = os.path.join(
+            settings.MEDIA_ROOT, "relatorio_padrao")
+        file_path = os.path.join(dest_dir, "rf_padrao.docx")
+        file_path_backup = os.path.join(dest_dir, "rf_padrao_backup.docx")
+        if os.path.exists(file_path):
+            if os.path.exists(file_path_backup):
+                os.remove(file_path_backup)
+            os.rename(file_path, file_path_backup)
         with open(file_path, 'wb+') as destination:
             for chunk in request.FILES['rf_padrao'].chunks():
                 destination.write(chunk)
-
-        return Response(status=204)
+            return Response({"detail": "Arquivo salvo com sucesso"}, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class downloadNotification(generics.RetrieveAPIView):

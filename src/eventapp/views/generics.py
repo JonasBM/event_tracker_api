@@ -285,6 +285,12 @@ def update_cep_imovel(imovel):
             logradouro = "".join(logradouro.rsplit("bc.", 1)).strip()
         if logradouro.endswith("jr"):
             logradouro = "".join(logradouro.rsplit("jr", 1)).strip()
+        if logradouro.startswith("trav."):
+            logradouro = logradouro.replace("trav.", "", 1).strip()
+        if logradouro.endswith("rod."):
+            logradouro = "".join(logradouro.rsplit("rod.", 1)).strip()
+        if logradouro.endswith("bc"):
+            logradouro = "".join(logradouro.rsplit("bc", 1)).strip()
 
     numero = ''
     if imovel.numero:
@@ -391,15 +397,27 @@ def update_cep():
 
             if not imovel.cep:
 
-                logradouro = imovel.logradouro.lower().strip()
-                if logradouro.startswith("r."):
-                    logradouro = logradouro.replace("r.", "", 1).strip()
-                if logradouro.startswith("av."):
-                    logradouro = logradouro.replace("av.", "", 1).strip()
-                if logradouro.endswith("bc."):
-                    logradouro = "".join(logradouro.rsplit("bc.", 1)).strip()
-                if logradouro.endswith("jr"):
-                    logradouro = "".join(logradouro.rsplit("jr", 1)).strip()
+                logradouro = ''
+                if imovel.logradouro:
+                    logradouro = imovel.logradouro.lower().strip()
+                    if logradouro.startswith("r."):
+                        logradouro = logradouro.replace("r.", "", 1).strip()
+                    if logradouro.startswith("av."):
+                        logradouro = logradouro.replace("av.", "", 1).strip()
+                    if logradouro.endswith("bc."):
+                        logradouro = "".join(
+                            logradouro.rsplit("bc.", 1)).strip()
+                    if logradouro.endswith("jr"):
+                        logradouro = "".join(
+                            logradouro.rsplit("jr", 1)).strip()
+                    if logradouro.startswith("trav."):
+                        logradouro = logradouro.replace("trav.", "", 1).strip()
+                    if logradouro.endswith("rod."):
+                        logradouro = "".join(
+                            logradouro.rsplit("rod.", 1)).strip()
+                    if logradouro.endswith("bc"):
+                        logradouro = "".join(
+                            logradouro.rsplit("bc", 1)).strip()
 
                 numero = imovel.numero.lower().strip()
                 if numero.startswith("n"):
@@ -586,12 +604,22 @@ class buscacep(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         params = request.GET.copy()
         logradouro = params["logradouro"].lower().strip()
+
         if logradouro.startswith("r."):
             logradouro = logradouro.replace("r.", "", 1).strip()
         if logradouro.startswith("av."):
             logradouro = logradouro.replace("av.", "", 1).strip()
+        if logradouro.endswith("bc."):
+            logradouro = "".join(logradouro.rsplit("bc.", 1)).strip()
         if logradouro.endswith("jr"):
             logradouro = "".join(logradouro.rsplit("jr", 1)).strip()
+        if logradouro.startswith("trav."):
+            logradouro = logradouro.replace("trav.", "", 1).strip()
+        if logradouro.endswith("rod."):
+            logradouro = "".join(logradouro.rsplit("rod.", 1)).strip()
+        if logradouro.endswith("bc"):
+            logradouro = "".join(logradouro.rsplit("bc", 1)).strip()
+
         params["logradouro"] = logradouro
         url_str = (
             "https://buscacepinter.correios.com.br"
