@@ -1,8 +1,7 @@
 from django.urls import include, path
 from rest_framework import routers
-from eventapp.views import viewsets
-from eventapp.views import generics
-from eventapp.views import documents
+
+from eventapp.views import documents, generics, viewsets
 
 router = routers.DefaultRouter()
 router.register(r"user", viewsets.UserViewSet, "user")

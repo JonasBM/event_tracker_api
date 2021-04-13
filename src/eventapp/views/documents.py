@@ -15,7 +15,8 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
 from eventapp.models import (Notice, NoticeEvent, NoticeEventType,
-                             NoticeEventTypeFile, SurveyEventType, SurveyEvent, ReportEventType, ReportEvent)
+                             NoticeEventTypeFile, ReportEvent, ReportEventType,
+                             SurveyEvent, SurveyEventType)
 from eventapp.utils import docxFromTemplate, getDateFromString
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response

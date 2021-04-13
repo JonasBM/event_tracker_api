@@ -1,26 +1,13 @@
-from rest_framework import serializers
-from eventapp.models import (
-    Profile,
-    ImovelUpdateLog,
-    Imovel,
-    Notice,
-    NoticeEventType,
-    NoticeEventTypeFile,
-    NoticeColor,
-    NoticeEvent,
-    NoticeFine,
-    NoticeAppeal,
-    SurveyEventType,
-    SurveyEvent,
-    ReportEventType,
-    ReportEvent,
-    Activity,
-    getDefaultImovel,
-)
 from django.contrib.auth.models import User
-
-from eventapp.utils import add_days, count_days
 from django.db import transaction
+from rest_framework import serializers
+
+from eventapp.models import (Activity, Imovel, ImovelUpdateLog, Notice,
+                             NoticeAppeal, NoticeColor, NoticeEvent,
+                             NoticeEventType, NoticeEventTypeFile, NoticeFine,
+                             Profile, ReportEvent, ReportEventType,
+                             SurveyEvent, SurveyEventType, getDefaultImovel)
+from eventapp.utils import add_days, count_days
 
 
 class ProfileSerializer(serializers.ModelSerializer):

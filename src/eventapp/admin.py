@@ -1,21 +1,10 @@
 from django.contrib import admin
-from eventapp.models import (
-    Profile,
-    ImovelUpdateLog,
-    Imovel,
-    Notice,
-    NoticeEvent,
-    NoticeEventType,
-    NoticeEventTypeFile,
-    NoticeColor,
-    NoticeFine,
-    NoticeAppeal,
-    SurveyEvent,
-    SurveyEventType,
-    ReportEvent,
-    ReportEventType,
-    Activity,
-)
+
+from eventapp.models import (Activity, Imovel, ImovelUpdateLog, Notice,
+                             NoticeAppeal, NoticeColor, NoticeEvent,
+                             NoticeEventType, NoticeEventTypeFile, NoticeFine,
+                             Profile, ReportEvent, ReportEventType,
+                             SurveyEvent, SurveyEventType)
 
 admin.site.register(Profile)
 admin.site.register(Imovel)

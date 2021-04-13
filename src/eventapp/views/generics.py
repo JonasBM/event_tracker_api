@@ -1,4 +1,3 @@
-from django.http import HttpResponse
 import json
 import os
 from datetime import datetime
@@ -7,21 +6,19 @@ from zipfile import ZipFile
 import requests
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.db.models import Q
+from django.http import HttpResponse
 from django.utils import timezone
 from eventapp.models import Imovel, ImovelUpdateLog, Notice
-from eventapp.serializers import (
-    ChangePasswordSerializer,
-    ImovelUpdateLogSerializer,
-    NoticeSerializer,
-    UserProfileSerializer,
-)
+from eventapp.serializers import (ChangePasswordSerializer,
+                                  ImovelUpdateLogSerializer, NoticeSerializer,
+                                  UserProfileSerializer)
 from eventapp.utils import text_to_id
 from knox.auth import TokenAuthentication
 from knox.views import LoginView as KnoxLoginView
 from rest_framework import generics, permissions, status
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.response import Response
-from django.db.models import Q
 
 
 def default_imovel_geoitajai():
