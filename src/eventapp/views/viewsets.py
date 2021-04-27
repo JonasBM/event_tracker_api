@@ -1,21 +1,37 @@
 from django.contrib.auth.models import User
 from django.db.models import Case, Q, When
-from eventapp.models import (Activity, Imovel, Notice, NoticeColor,
-                             NoticeEventType, NoticeEventTypeFile, ReportEvent,
-                             ReportEventType, SurveyEvent, SurveyEventType)
-from eventapp.serializers import (ActivitySerializer, ImovelSerializer,
-                                  NoticeColorSerializer,
-                                  NoticeEventTypeFileSerializer,
-                                  NoticeEventTypeSerializer, NoticeSerializer,
-                                  ReportEventSerializer,
-                                  ReportEventTypeSerializer,
-                                  SurveyEventSerializer,
-                                  SurveyEventTypeSerializer,
-                                  UserProfileSerializer, UserSerializer)
+from eventapp.models import (
+    Activity,
+    Imovel,
+    Notice,
+    NoticeColor,
+    NoticeEventType,
+    NoticeEventTypeFile,
+    ReportEvent,
+    ReportEventType,
+    SurveyEvent,
+    SurveyEventType,
+)
+from eventapp.serializers import (
+    ActivitySerializer,
+    ImovelSerializer,
+    NoticeColorSerializer,
+    NoticeEventTypeFileSerializer,
+    NoticeEventTypeSerializer,
+    NoticeSerializer,
+    ReportEventSerializer,
+    ReportEventTypeSerializer,
+    SurveyEventSerializer,
+    SurveyEventTypeSerializer,
+    UserProfileSerializer,
+    UserSerializer,
+)
 from eventapp.utils import getDateFromString
-from eventapp.views.permissions import (IsAdminUserOrIsAuthenticatedReadOnly,
-                                        IsAdminUserOrIsOwner,
-                                        IsOwnerOrIsAuthenticatedReadOnly)
+from eventapp.views.permissions import (
+    IsAdminUserOrIsAuthenticatedReadOnly,
+    IsAdminUserOrIsOwner,
+    IsOwnerOrIsAuthenticatedReadOnly,
+)
 from rest_framework import permissions, status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -177,14 +193,19 @@ class ImovelViewSet(viewsets.ModelViewSet):
         if query:
             queryset = queryset.filter(query)
 
+        case_id = When(id=None, then=0)
         if imovel_id:
-            return (
-                queryset.all()
-                .order_by(Case(When(id=imovel_id, then=0), default=1))
-                .all()
-            )
-        else:
-            return queryset.order_by('codigo').all()
+            case_id = When(id=imovel_id, then=0)
+
+        case_codigo = When(codigo=None, then=1)
+        if codigo:
+            case_codigo = When(codigo=codigo, then=1)
+
+        return (
+            queryset.all()
+            .order_by(Case(case_id, case_codigo, default=2))
+            .all()
+        )
 
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
