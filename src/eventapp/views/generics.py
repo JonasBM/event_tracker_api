@@ -6,13 +6,17 @@ from zipfile import ZipFile
 import requests
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core import serializers
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
 from eventapp.models import Imovel, ImovelUpdateLog, Notice
-from eventapp.serializers import (ChangePasswordSerializer,
-                                  ImovelUpdateLogSerializer, NoticeSerializer,
-                                  UserProfileSerializer)
+from eventapp.serializers import (
+    ChangePasswordSerializer,
+    ImovelUpdateLogSerializer,
+    NoticeSerializer,
+    UserProfileSerializer,
+)
 from eventapp.utils import text_to_id
 from knox.auth import TokenAuthentication
 from knox.views import LoginView as KnoxLoginView
@@ -196,31 +200,124 @@ def read_from_geoitajai(log, file_path, r):
                             "filedatetime": filedatetime,
                         }
 
-                        imovel = Imovel.objects.filter(
-                            inscricao_imobiliaria=instance["properties"][
-                                "ninscrao"
-                            ]
-                        ).first()
-                        if not imovel:
-                            imovel = Imovel.objects.filter(
-                                codigo=instance["properties"][
-                                    "ncodimov"
-                                ]
-                            ).first()
+                        imovel = None
 
-                        if not imovel:
+                        imovel_per_inscricao_imobiliaria = (
+                            Imovel.objects.filter(
+                                inscricao_imobiliaria=instance["properties"][
+                                    "ninscrao"
+                                ],
+                            ).first()
+                        )
+                        imovel_per_codigo = Imovel.objects.filter(
+                            codigo=instance["properties"]["ncodimov"]
+                        ).first()
+
+                        imovel_status = "error"
+
+                        if (
+                            imovel_per_codigo
+                            and imovel_per_inscricao_imobiliaria
+                        ):
+                            if (
+                                imovel_per_codigo.id
+                                == imovel_per_inscricao_imobiliaria.id
+                            ):
+                                imovel_status = "ok"
+                        else:
+                            if imovel_per_codigo:
+                                imovel_status = "novo_codigo"
+                            if imovel_per_codigo:
+                                imovel_status = "nova_inscricao"
+
+                        if (
+                            not imovel_per_codigo
+                            and not imovel_per_inscricao_imobiliaria
+                        ):
                             novos += 1
                             imovel = Imovel(**imovel_data)
                             imovel.save()
+                            update_cep_imovel(imovel)
                         else:
-                            if filedatetime > imovel.filedatetime:
-                                alterados += 1
-                                for attr, value in imovel_data.items():
-                                    setattr(imovel, attr, value)
-                                imovel.save()
+                            if (
+                                imovel_status == "ok"
+                                or imovel_status == "novo_codigo"
+                                or imovel_status == "nova_inscricao"
+                            ):
+                                if imovel_per_codigo:
+                                    imovel = imovel_per_codigo
+                                elif imovel_per_inscricao_imobiliaria:
+                                    imovel = imovel_per_inscricao_imobiliaria
+                                if filedatetime > imovel.filedatetime:
+                                    alterados += 1
+                                    for attr, value in imovel_data.items():
+                                        setattr(imovel, attr, value)
+                                    imovel.save()
+                                    update_cep_imovel(imovel)
+                                else:
+                                    inalterados += 1
                             else:
-                                inalterados += 1
-                        update_cep_imovel(imovel)
+                                dest_folder = (
+                                    settings.MEDIA_ROOT + "//temp_geoitajai"
+                                )
+                                filename = (
+                                    datetime.now().strftime("%Y-%m-%d")
+                                    + "-ERRORS.txt"
+                                )
+                                file_path_error = os.path.join(
+                                    dest_folder, filename
+                                )
+                                with open(
+                                    file_path_error, "a", encoding="utf8"
+                                ) as f:
+                                    f.write("=======ERROR=====\n")
+                                    f.write(
+                                        "Imóvel com erro (arquivo: "
+                                        + zipfileInfo.filename
+                                        + "):\n"
+                                    )
+                                    if imovel_status == "novo_codigo":
+                                        f.write("Trocou de CÓDIGO:\n")
+                                        f.write("\n")
+                                    if imovel_status == "nova_inscricao":
+                                        f.write(
+                                            "Trocou de INSCRIÇÃO IMOBILIÁRIA:\n"
+                                        )
+                                        f.write("\n")
+                                    f.write("\n")
+                                    if imovel_per_codigo:
+                                        f.write("Dados do código:\n")
+                                        f.write(
+                                            serializers.serialize(
+                                                "json",
+                                                [
+                                                    imovel_per_codigo,
+                                                ],
+                                            )
+                                        )
+                                        f.write("\n")
+                                        f.write("\n")
+                                    if imovel_per_inscricao_imobiliaria:
+                                        f.write(
+                                            "Dados da inscrição imobiliária:\n"
+                                        )
+                                        f.write(
+                                            serializers.serialize(
+                                                "json",
+                                                [
+                                                    imovel_per_inscricao_imobiliaria,
+                                                ],
+                                            )
+                                        )
+                                        f.write("\n")
+                                        f.write("\n")
+                                    f.write("Dados no arquivo:\n")
+                                    f.write(str(imovel_data))
+                                    f.write("\n")
+                                    f.write("============\n")
+                                    f.write("\n")
+                                    f.write("\n")
+
     except Exception as e:
         print("Falha ao ler arquivo compactado")
         print(str(e))
@@ -271,7 +368,7 @@ def update_cep_imovel(imovel):
         "/localidade_logradouro"
         "/carrega-localidade-logradouro.php"
     )
-    logradouro = ''
+    logradouro = ""
     if imovel.logradouro:
         logradouro = imovel.logradouro.lower().strip()
         if logradouro.startswith("r."):
@@ -289,7 +386,7 @@ def update_cep_imovel(imovel):
         if logradouro.endswith("bc"):
             logradouro = "".join(logradouro.rsplit("bc", 1)).strip()
 
-    numero = ''
+    numero = ""
     if imovel.numero:
         numero = imovel.numero.lower().strip()
         if numero.startswith("n"):
@@ -394,7 +491,7 @@ def update_cep():
 
             if not imovel.cep:
 
-                logradouro = ''
+                logradouro = ""
                 if imovel.logradouro:
                     logradouro = imovel.logradouro.lower().strip()
                     if logradouro.startswith("r."):
@@ -403,18 +500,22 @@ def update_cep():
                         logradouro = logradouro.replace("av.", "", 1).strip()
                     if logradouro.endswith("bc."):
                         logradouro = "".join(
-                            logradouro.rsplit("bc.", 1)).strip()
+                            logradouro.rsplit("bc.", 1)
+                        ).strip()
                     if logradouro.endswith("jr"):
                         logradouro = "".join(
-                            logradouro.rsplit("jr", 1)).strip()
+                            logradouro.rsplit("jr", 1)
+                        ).strip()
                     if logradouro.startswith("trav."):
                         logradouro = logradouro.replace("trav.", "", 1).strip()
                     if logradouro.endswith("rod."):
                         logradouro = "".join(
-                            logradouro.rsplit("rod.", 1)).strip()
+                            logradouro.rsplit("rod.", 1)
+                        ).strip()
                     if logradouro.endswith("bc"):
                         logradouro = "".join(
-                            logradouro.rsplit("bc", 1)).strip()
+                            logradouro.rsplit("bc", 1)
+                        ).strip()
 
                 numero = imovel.numero.lower().strip()
                 if numero.startswith("n"):
