@@ -1,6 +1,8 @@
 {
   "python.pythonPath": "C:\\Users\\Jonas\\Documents\\WEB DEV\\event_tracker\\backend\\eventtracker_api\\env\\Scripts\\python.exe",
-  "python.autoComplete.extraPaths": ["\\env\\Lib\\site-packages"],
+  "python.autoComplete.extraPaths": [
+    "C:\\Users\\Jonas\\Documents\\WEB DEV\\event_tracker\\backend\\eventtracker_api\\env\\Lib\\site-packages"
+  ],
   "python.linting.enabled": true,
   "python.linting.pylintEnabled": false,
   "python.linting.pylintArgs": [
@@ -15,5 +17,8 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "css.validate": false,
   "less.validate": false,
-  "scss.validate": false
+  "scss.validate": false,
+  "python.analysis.extraPaths": [
+    "C:\\Users\\Jonas\\Documents\\WEB DEV\\event_tracker\\backend\\eventtracker_api\\env\\Lib\\site-packages"
+  ]
 }

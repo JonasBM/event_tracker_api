@@ -31,6 +31,7 @@ from eventapp.views.permissions import (
     IsAdminUserOrIsAuthenticatedReadOnly,
     IsAdminUserOrIsOwner,
     IsOwnerOrIsAuthenticatedReadOnly,
+    IsAuditorOrIsAuthenticatedReadOnly,
 )
 from rest_framework import permissions, status, viewsets
 from rest_framework.pagination import PageNumberPagination
@@ -56,10 +57,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
                 "last_name",
             ).filter(is_superuser=False)
         else:
-            return User.objects.order_by(
-                "first_name",
-                "last_name",
-            ).filter(id=self.request.user.id)
+            return User.objects.filter(id=self.request.user.id)
 
     def create(self, request, *args, **kwargs):
         if self.request.user.is_staff:
@@ -85,6 +83,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             request.data.pop("is_active")
             request.data.pop("groups")
             request.data.pop("user_permissions")
+            request.data["profile"].pop("user_type")
         else:
             password = None
             if "password" in request.data.keys():
@@ -221,12 +220,17 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
                 "first_name",
                 "last_name",
             ).all()
-        else:
+        elif (
+            self.request.user.is_staff
+            or self.request.user.profile.is_auditor()
+        ):
             return User.objects.order_by(
                 Case(When(id=self.request.user.id, then=0), default=1),
                 "first_name",
                 "last_name",
             ).filter(is_superuser=False)
+        else:
+            return User.objects.filter(id=self.request.user.id)
 
 
 class NoticeEventTypeViewSet(viewsets.ModelViewSet):
@@ -272,7 +276,7 @@ class ReportEventTypeViewSet(viewsets.ModelViewSet):
 
 class UserNoticeViewSet(viewsets.ModelViewSet):
     permission_classes = [
-        IsOwnerOrIsAuthenticatedReadOnly,
+        IsAuditorOrIsAuthenticatedReadOnly,
     ]
     serializer_class = NoticeSerializer
 
@@ -284,7 +288,13 @@ class UserNoticeViewSet(viewsets.ModelViewSet):
             self.request.query_params.get("end_date", None)
         )
 
-        queryset = Notice.objects
+        if (
+            not self.request.user.is_staff
+            or not self.request.user.profile.is_auditor()
+        ):
+            queryset = Notice.objects.filter(owner=self.request.user)
+        else:
+            queryset = Notice.objects
 
         if start_date and end_date:
             query_notice = Q(notice_events__date__range=[start_date, end_date])
@@ -339,11 +349,15 @@ class UserNoticeViewSet(viewsets.ModelViewSet):
 
         incompatible = self.request.query_params.get("incompatible", None)
         if incompatible:
-            queryset = Notice.objects.filter(Q(imovel_id=None))
+            queryset = queryset.distinct().filter(Q(imovel_id=None))
 
         return queryset
 
     def create(self, request, *args, **kwargs):
+
+        if self.request.user.profile.is_assistente():
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
         request.data["owner"] = request.user.id
         if "imovel_id" not in request.data.keys():
             request.data["imovel_id"] = 0
@@ -358,7 +372,7 @@ class UserNoticeViewSet(viewsets.ModelViewSet):
 
 class UserSurveyEventViewSet(viewsets.ModelViewSet):
     permission_classes = [
-        IsOwnerOrIsAuthenticatedReadOnly,
+        IsAuditorOrIsAuthenticatedReadOnly,
     ]
     serializer_class = SurveyEventSerializer
 
@@ -371,7 +385,13 @@ class UserSurveyEventViewSet(viewsets.ModelViewSet):
             self.request.query_params.get("end_date", None)
         )
 
-        queryset = SurveyEvent.objects
+        if (
+            not self.request.user.is_staff
+            or not self.request.user.profile.is_auditor()
+        ):
+            queryset = SurveyEvent.objects.filter(owner=self.request.user)
+        else:
+            queryset = SurveyEvent.objects
 
         if start_date and end_date:
             query_survey = Q(date__range=[start_date, end_date])
@@ -409,11 +429,15 @@ class UserSurveyEventViewSet(viewsets.ModelViewSet):
 
         incompatible = self.request.query_params.get("incompatible", None)
         if incompatible:
-            queryset = SurveyEvent.objects.filter(Q(imovel_id=None))
+            queryset = queryset.distinct().filter(Q(imovel_id=None))
 
         return queryset
 
     def create(self, request, *args, **kwargs):
+
+        if self.request.user.profile.is_assistente():
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
         request.data["owner"] = request.user.id
         if "imovel_id" not in request.data.keys():
             request.data["imovel_id"] = 0
@@ -445,7 +469,13 @@ class UserReportEventViewSet(viewsets.ModelViewSet):
             self.request.query_params.get("end_date", None)
         )
 
-        queryset = ReportEvent.objects
+        if (
+            not self.request.user.is_staff
+            or not self.request.user.profile.is_auditor()
+        ):
+            queryset = ReportEvent.objects.filter(owner=self.request.user)
+        else:
+            queryset = ReportEvent.objects
 
         if start_date and end_date:
             query_report = Q(date__range=[start_date, end_date])
@@ -483,7 +513,7 @@ class UserReportEventViewSet(viewsets.ModelViewSet):
 
         incompatible = self.request.query_params.get("incompatible", None)
         if incompatible:
-            queryset = ReportEvent.objects.filter(Q(imovel_id=None))
+            queryset = queryset.distinct().filter(Q(imovel_id=None))
 
         return queryset
 
@@ -511,24 +541,32 @@ class UserActivityViewSet(viewsets.ModelViewSet):
     serializer_class = ActivitySerializer
 
     def get_queryset(self):
-        # user = self.request.user
         start_date = getDateFromString(
             self.request.query_params.get("start_date", None)
         )
         end_date = getDateFromString(
             self.request.query_params.get("end_date", None)
         )
-        if start_date and end_date:
-            query_activity = Q(date__range=[start_date, end_date])
-            queryset = Activity.objects.distinct().filter(query_activity)
-        elif start_date:
-            query_activity = Q(date__gte=start_date)
-            queryset = Activity.objects.distinct().filter(query_activity)
-        elif end_date:
-            query_activity = Q(date__lte=end_date)
-            queryset = Activity.objects.distinct().filter(query_activity)
+
+        if (
+            not self.request.user.is_staff
+            or not self.request.user.profile.is_auditor()
+        ):
+            queryset = Activity.objects.filter(owner=self.request.user)
         else:
             queryset = Activity.objects
+
+        if start_date and end_date:
+            query_activity = Q(date__range=[start_date, end_date])
+            queryset = queryset.distinct().filter(query_activity)
+        elif start_date:
+            query_activity = Q(date__gte=start_date)
+            queryset = queryset.distinct().filter(query_activity)
+        elif end_date:
+            query_activity = Q(date__lte=end_date)
+            queryset = queryset.distinct().filter(query_activity)
+        else:
+            queryset = queryset
         return queryset
 
     def create(self, request, *args, **kwargs):

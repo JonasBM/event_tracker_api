@@ -14,9 +14,16 @@ from docx import Document
 from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
-from eventapp.models import (Notice, NoticeEvent, NoticeEventType,
-                             NoticeEventTypeFile, ReportEvent, ReportEventType,
-                             SurveyEvent, SurveyEventType)
+from eventapp.models import (
+    Notice,
+    NoticeEvent,
+    NoticeEventType,
+    NoticeEventTypeFile,
+    ReportEvent,
+    ReportEventType,
+    SurveyEvent,
+    SurveyEventType,
+)
 from eventapp.utils import docxFromTemplate, getDateFromString
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
@@ -50,8 +57,16 @@ class ReportPDF(generics.RetrieveAPIView):
             if user_instance:
                 user = user_instance
 
+        if self.request.user != user:
+            if (
+                self.request.user.profile.is_assistente()
+                or self.request.user.profile.is_particular()
+            ):
+                return Response(status=status.HTTP_403_FORBIDDEN)
+
         include_analytic_data = self.request.query_params.get(
-            "include_analytic_data", None)
+            "include_analytic_data", None
+        )
         if not include_analytic_data:
             include_analytic_data = True
         if type(include_analytic_data) is not bool:
@@ -77,8 +92,13 @@ class ReportPDF(generics.RetrieveAPIView):
         query_range = Q(date__range=[start_date, end_date])
         query_owner = Q(owner=user)
 
-        notice_event_types = NoticeEventType.objects.distinct().filter(
-            query_range_notice_event & Q(notice_events__notice__owner=user)).all()
+        notice_event_types = (
+            NoticeEventType.objects.distinct()
+            .filter(
+                query_range_notice_event & Q(notice_events__notice__owner=user)
+            )
+            .all()
+        )
 
         notices = (
             Notice.objects.distinct()
@@ -89,12 +109,24 @@ class ReportPDF(generics.RetrieveAPIView):
             query_range & query_owner_notice
         ).all()
 
-        survey_event_types = SurveyEventType.objects.distinct().filter(
-            Q(survey_events__date__range=[start_date, end_date]) & Q(survey_events__owner=user)).all()
+        survey_event_types = (
+            SurveyEventType.objects.distinct()
+            .filter(
+                Q(survey_events__date__range=[start_date, end_date])
+                & Q(survey_events__owner=user)
+            )
+            .all()
+        )
         survey_events = user.surveys.filter(query_range & query_owner).all()
 
-        report_event_types = ReportEventType.objects.distinct().filter(
-            Q(report_events__date__range=[start_date, end_date]) & Q(report_events__owner=user)).all()
+        report_event_types = (
+            ReportEventType.objects.distinct()
+            .filter(
+                Q(report_events__date__range=[start_date, end_date])
+                & Q(report_events__owner=user)
+            )
+            .all()
+        )
         report_events = user.reports.filter(query_range & query_owner).all()
 
         activitys = user.activitys.filter(query_range & query_owner).all()
@@ -126,6 +158,12 @@ class ReportPDFAll(generics.RetrieveAPIView):
 
     def get(self, request, *args, **kwargs):
 
+        if (
+            self.request.user.profile.is_assistente()
+            or self.request.user.profile.is_particular()
+        ):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
         month = self.request.query_params.get("month", None)
         if month:
             start_date = getDateFromString(month + "-01")
@@ -143,8 +181,14 @@ class ReportPDFAll(generics.RetrieveAPIView):
         query_range = Q(date__range=[start_date, end_date])
         query_owner = Q(owner__is_superuser=False)
 
-        notice_event_types = NoticeEventType.objects.distinct().filter(
-            query_range_notice_event & Q(notice_events__notice__owner__is_superuser=False)).all()
+        notice_event_types = (
+            NoticeEventType.objects.distinct()
+            .filter(
+                query_range_notice_event
+                & Q(notice_events__notice__owner__is_superuser=False)
+            )
+            .all()
+        )
 
         notices = (
             Notice.objects.distinct()
@@ -155,15 +199,29 @@ class ReportPDFAll(generics.RetrieveAPIView):
             query_range & query_owner_notice
         ).all()
 
-        survey_event_types = SurveyEventType.objects.distinct().filter(
-            Q(survey_events__date__range=[start_date, end_date]) & Q(survey_events__owner__is_superuser=False)).all()
+        survey_event_types = (
+            SurveyEventType.objects.distinct()
+            .filter(
+                Q(survey_events__date__range=[start_date, end_date])
+                & Q(survey_events__owner__is_superuser=False)
+            )
+            .all()
+        )
         survey_events = SurveyEvent.objects.filter(
-            query_range & query_owner).all()
+            query_range & query_owner
+        ).all()
 
-        report_event_types = ReportEventType.objects.distinct().filter(
-            Q(report_events__date__range=[start_date, end_date]) & Q(report_events__owner__is_superuser=False)).all()
+        report_event_types = (
+            ReportEventType.objects.distinct()
+            .filter(
+                Q(report_events__date__range=[start_date, end_date])
+                & Q(report_events__owner__is_superuser=False)
+            )
+            .all()
+        )
         report_events = ReportEvent.objects.filter(
-            query_range & query_owner).all()
+            query_range & query_owner
+        ).all()
 
         context = {
             "today": date.today(),
@@ -194,6 +252,13 @@ class sheetCSV(generics.RetrieveAPIView):
             user_instance = User.objects.filter(id=user_id).first()
             if user_instance:
                 user = user_instance
+
+        if self.request.user != user:
+            if (
+                self.request.user.profile.is_assistente()
+                or self.request.user.profile.is_particular()
+            ):
+                return Response(status=status.HTTP_403_FORBIDDEN)
 
         month = self.request.query_params.get("month", None)
         if month:
@@ -312,6 +377,9 @@ class NoticeReportDocx(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         locale.setlocale(locale.LC_TIME, "pt_BR")
 
+        if self.request.user.profile.is_assistente():
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
         notice_id = self.request.query_params.get("notice_id", None)
         if notice_id:
             notice = Notice.objects.filter(id=notice_id).first()
@@ -339,9 +407,17 @@ class NoticeReportDocx(generics.RetrieveAPIView):
                 report_number += timezone.localtime(timezone.now()).strftime(
                     "%Y"
                 )
+
+                va_identification = "YYY"
+
                 if vistoria_administrativa:
                     if vistoria_administrativa.report_number:
                         report_number = vistoria_administrativa.report_number
+
+                    if vistoria_administrativa.identification:
+                        va_identification = (
+                            vistoria_administrativa.identification
+                        )
 
                 if os.path.exists(file_path):
                     document = Document(file_path)
@@ -368,9 +444,13 @@ class NoticeReportDocx(generics.RetrieveAPIView):
                             if "numero_relatorio_fiscalizacao" in r.text:
                                 r.text = r.text.replace(
                                     "numero_relatorio_fiscalizacao",
-                                    "Relatório nº "
-                                    + report_number
-                                    + " – Fiscalização",
+                                    report_number,
+                                )
+
+                            if "numero_VA" in r.text:
+                                r.text = r.text.replace(
+                                    "numero_VA",
+                                    va_identification,
                                 )
 
                             if "AFM_nome_completo" in r.text:
@@ -497,8 +577,10 @@ class VARequestDocx(generics.RetrieveAPIView):
     ]
 
     def get(self, request, *args, **kwargs):
-
         locale.setlocale(locale.LC_TIME, "pt_BR")
+
+        if self.request.user.profile.is_assistente():
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         vistoria_administrativa_id = self.request.query_params.get(
             "vistoria_administrativa_id", None
@@ -523,7 +605,8 @@ class VARequestDocx(generics.RetrieveAPIView):
                     notice.notice_events.order_by("-date").all().first()
                 )
                 file_path = os.path.join(
-                    settings.MEDIA_ROOT, "relatorio_padrao", "va_padrao.docx")
+                    settings.MEDIA_ROOT, "relatorio_padrao", "va_padrao.docx"
+                )
                 report_number = "XXX/"
                 report_number += timezone.localtime(timezone.now()).strftime(
                     "%Y"
@@ -576,7 +659,8 @@ class VARequestDocx(generics.RetrieveAPIView):
                             if "numero_VA" in r.text:
                                 r.text = r.text.replace(
                                     "numero_VA",
-                                    "n° " + vistoria_administrativa.identification,
+                                    "n° "
+                                    + vistoria_administrativa.identification,
                                 )
 
                             if "lista_de_autos" in r.text:
@@ -756,7 +840,8 @@ class VARequestDocx(generics.RetrieveAPIView):
                 return response
         else:
             raise serializers.ValidationError(
-                "vistoria_administrativa_id field required.")
+                "vistoria_administrativa_id field required."
+            )
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -766,30 +851,42 @@ class FileVARequestDocx(generics.ListCreateAPIView):
     ]
 
     def get(self, request, *args, **kwargs):
+
+        if self.request.user.profile.is_assistente():
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
         file_path = os.path.join(
-            settings.MEDIA_ROOT, "relatorio_padrao", "va_padrao.docx")
+            settings.MEDIA_ROOT, "relatorio_padrao", "va_padrao.docx"
+        )
         if os.path.exists(file_path):
             document = Document(file_path)
             response = HttpResponse(
-                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-            response['Content-Disposition'] = 'attachment; filename=download.docx'
+                content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+            response[
+                "Content-Disposition"
+            ] = "attachment; filename=download.docx"
             document.save(response)
             return response
         raise Http404
 
     def post(self, request, *args, **kwargs):
         dest_dir = file_path = os.path.join(
-            settings.MEDIA_ROOT, "relatorio_padrao")
+            settings.MEDIA_ROOT, "relatorio_padrao"
+        )
         file_path = os.path.join(dest_dir, "va_padrao.docx")
         file_path_backup = os.path.join(dest_dir, "va_padrao_backup.docx")
         if os.path.exists(file_path):
             if os.path.exists(file_path_backup):
                 os.remove(file_path_backup)
             os.rename(file_path, file_path_backup)
-        with open(file_path, 'wb+') as destination:
-            for chunk in request.FILES['va_padrao'].chunks():
+        with open(file_path, "wb+") as destination:
+            for chunk in request.FILES["va_padrao"].chunks():
                 destination.write(chunk)
-            return Response({"detail": "Arquivo salvo com sucesso"}, status=status.HTTP_200_OK)
+            return Response(
+                {"detail": "Arquivo salvo com sucesso"},
+                status=status.HTTP_200_OK,
+            )
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -799,30 +896,39 @@ class FileRFRequestDocx(generics.ListCreateAPIView):
     ]
 
     def get(self, request, *args, **kwargs):
+
         file_path = os.path.join(
-            settings.MEDIA_ROOT, "relatorio_padrao", "rf_padrao.docx")
+            settings.MEDIA_ROOT, "relatorio_padrao", "rf_padrao.docx"
+        )
         if os.path.exists(file_path):
             document = Document(file_path)
             response = HttpResponse(
-                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-            response['Content-Disposition'] = 'attachment; filename=download.docx'
+                content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+            response[
+                "Content-Disposition"
+            ] = "attachment; filename=download.docx"
             document.save(response)
             return response
         raise Http404
 
     def post(self, request, *args, **kwargs):
         dest_dir = file_path = os.path.join(
-            settings.MEDIA_ROOT, "relatorio_padrao")
+            settings.MEDIA_ROOT, "relatorio_padrao"
+        )
         file_path = os.path.join(dest_dir, "rf_padrao.docx")
         file_path_backup = os.path.join(dest_dir, "rf_padrao_backup.docx")
         if os.path.exists(file_path):
             if os.path.exists(file_path_backup):
                 os.remove(file_path_backup)
             os.rename(file_path, file_path_backup)
-        with open(file_path, 'wb+') as destination:
-            for chunk in request.FILES['rf_padrao'].chunks():
+        with open(file_path, "wb+") as destination:
+            for chunk in request.FILES["rf_padrao"].chunks():
                 destination.write(chunk)
-            return Response({"detail": "Arquivo salvo com sucesso"}, status=status.HTTP_200_OK)
+            return Response(
+                {"detail": "Arquivo salvo com sucesso"},
+                status=status.HTTP_200_OK,
+            )
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -832,8 +938,10 @@ class downloadNotification(generics.RetrieveAPIView):
     ]
 
     def get(self, request, *args, **kwargs):
-
         locale.setlocale(locale.LC_TIME, "pt_BR")
+
+        if self.request.user.profile.is_assistente():
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         notice_event_reference = self.request.query_params.get(
             "notice_event_reference", None
@@ -866,45 +974,57 @@ class downloadNotification(generics.RetrieveAPIView):
             if notice_event.notice.imovel.logradouro:
                 address_string = notice_event.notice.imovel.logradouro
             if notice_event.notice.imovel.numero:
-                address_string += (
-                    ", n" + notice_event.notice.imovel.numero
-                )
+                address_string += ", n" + notice_event.notice.imovel.numero
             if notice_event.notice.imovel.complemento:
-                address_string += (
-                    ", " + notice_event.notice.imovel.complemento
-                )
+                address_string += ", " + notice_event.notice.imovel.complemento
             if notice_event.notice.imovel.bairro:
-                address_string += (
-                    " - " + notice_event.notice.imovel.bairro
-                )
+                address_string += " - " + notice_event.notice.imovel.bairro
 
             def toUpperCasoOrNone(string):
                 if string:
                     return str(string).upper()
                 return None
 
-            print(toUpperCasoOrNone(notice_event.notice.document))
-
             context = {
-                "data_atual": timezone.localtime(timezone.now()).strftime("%d/%m/%Y"),
-                "data_atual_por_extenso": timezone.localtime(timezone.now()).strftime("%d de %B de %Y"),
-                "afm_nome_completo":  toUpperCasoOrNone(user.get_full_name()),
+                "data_atual": timezone.localtime(timezone.now()).strftime(
+                    "%d/%m/%Y"
+                ),
+                "data_atual_por_extenso": timezone.localtime(
+                    timezone.now()
+                ).strftime("%d de %B de %Y"),
+                "afm_nome_completo": toUpperCasoOrNone(user.get_full_name()),
                 "afm_matricula": toUpperCasoOrNone(user.profile.matricula),
-                "auto_identificacao": toUpperCasoOrNone(notice_event.identification),
+                "auto_identificacao": toUpperCasoOrNone(
+                    notice_event.identification
+                ),
                 "auto_data": notice_event.date.strftime("%d/%m/%Y"),
-                "auto_data_por_extenso": notice_event.date.strftime("%d de %B de %Y"),
-                "auto_documento": toUpperCasoOrNone(notice_event.notice.document),
+                "auto_data_por_extenso": notice_event.date.strftime(
+                    "%d de %B de %Y"
+                ),
+                "auto_documento": toUpperCasoOrNone(
+                    notice_event.notice.document
+                ),
                 "auto_tipo": toUpperCasoOrNone(notice_event.notice_event_type),
-                "imovel_razao_social": toUpperCasoOrNone(notice_event.notice.imovel.razao_social),
-                "imovel_inscricao": toUpperCasoOrNone(notice_event.notice.imovel.inscricao_imobiliaria),
+                "imovel_razao_social": toUpperCasoOrNone(
+                    notice_event.notice.imovel.razao_social
+                ),
+                "imovel_inscricao": toUpperCasoOrNone(
+                    notice_event.notice.imovel.inscricao_imobiliaria
+                ),
                 "imovel_endereco_completo": toUpperCasoOrNone(address_string),
                 "auto_descumprido": toUpperCasoOrNone(notice_event_reference),
             }
             document = docxFromTemplate(file_path, context)
             if document:
-                response = HttpResponse(content_type=(
-                    "application/""vnd.openxmlformats-officedocument.wordprocessingml.document"))
-                response["Content-Disposition"] = "attachment; filename=download.docx"
+                response = HttpResponse(
+                    content_type=(
+                        "application/"
+                        "vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
+                )
+                response[
+                    "Content-Disposition"
+                ] = "attachment; filename=download.docx"
                 document.save(response)
                 return response
 

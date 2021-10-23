@@ -2,18 +2,42 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from rest_framework import serializers
 
-from eventapp.models import (Activity, Imovel, ImovelUpdateLog, Notice,
-                             NoticeAppeal, NoticeColor, NoticeEvent,
-                             NoticeEventType, NoticeEventTypeFile, NoticeFine,
-                             Profile, ReportEvent, ReportEventType,
-                             SurveyEvent, SurveyEventType, getDefaultImovel)
+from eventapp.models import (
+    Activity,
+    Imovel,
+    ImovelUpdateLog,
+    Notice,
+    NoticeAppeal,
+    NoticeColor,
+    NoticeEvent,
+    NoticeEventType,
+    NoticeEventTypeFile,
+    NoticeFine,
+    Profile,
+    ReportEvent,
+    ReportEventType,
+    SurveyEvent,
+    SurveyEventType,
+    getDefaultImovel,
+)
 from eventapp.utils import add_days, count_days
 
 
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
-        exclude = ("user",)
+        fields = (
+            "user_type",
+            "matricula",
+            "is_auditor",
+            "is_assistente",
+            "is_particular",
+        )
+        read_only_fields = (
+            "is_auditor",
+            "is_assistente",
+            "is_particular",
+        )
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -138,13 +162,14 @@ class NoticeColorSerializer(serializers.ModelSerializer):
 class NoticeAppealSerializer(serializers.ModelSerializer):
     start_date = serializers.DateField(format="%Y-%m-%d")
     end_date = serializers.DateField(
-        format="%Y-%m-%d", required=False, allow_null=True)
+        format="%Y-%m-%d", required=False, allow_null=True
+    )
     id = serializers.IntegerField(required=False)
 
     def to_internal_value(self, data):
         if "end_date" in data.keys():
-            if data['end_date'] == '':
-                data['end_date'] = None
+            if data["end_date"] == "":
+                data["end_date"] = None
         return super(NoticeAppealSerializer, self).to_internal_value(data)
 
     class Meta:
@@ -213,21 +238,30 @@ def update_or_create_multiple_notice_events(
 
         extensions = 0
 
-        print("notice_appeals_data: "+str(notice_appeals_data))
+        print("notice_appeals_data: " + str(notice_appeals_data))
         for notice_appeal in notice_appeals_data:
             if "extension" in notice_appeal.keys():
-                print("extension: "+str(notice_appeal["extension"]))
+                print("extension: " + str(notice_appeal["extension"]))
                 extensions += notice_appeal["extension"]
-            if "start_date" in notice_appeal.keys() and "end_date" in notice_appeal.keys():
-                teste = count_days(notice_appeal["start_date"],
-                                   notice_appeal["end_date"], notice_event["deadline_working_days"])
-                extensions += count_days(notice_appeal["start_date"],
-                                         notice_appeal["end_date"], notice_event["deadline_working_days"])
-                print("count: "+str(teste))
+            if (
+                "start_date" in notice_appeal.keys()
+                and "end_date" in notice_appeal.keys()
+            ):
+                teste = count_days(
+                    notice_appeal["start_date"],
+                    notice_appeal["end_date"],
+                    notice_event["deadline_working_days"],
+                )
+                extensions += count_days(
+                    notice_appeal["start_date"],
+                    notice_appeal["end_date"],
+                    notice_event["deadline_working_days"],
+                )
+                print("count: " + str(teste))
 
         deadline_date = add_days(
             notice_event["date"],
-            (notice_event["deadline"]+extensions),
+            (notice_event["deadline"] + extensions),
             notice_event["deadline_working_days"],
         )
 
@@ -293,7 +327,11 @@ def update_or_create_multiple_notice_appeals(
         else:
             id = 0
         notice_appeals_instance = NoticeAppeal.objects.filter(id=id).first()
-        if notice_appeals_instance is not None and id != 0 and not force_create:
+        if (
+            notice_appeals_instance is not None
+            and id != 0
+            and not force_create
+        ):
             for attr, value in notice_appeals.items():
                 setattr(notice_appeals_instance, attr, value)
             notice_appeals_instance.save()

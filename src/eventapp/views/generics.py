@@ -160,6 +160,7 @@ def read_from_geoitajai(log, file_path, r):
                             log.novos = novos
                             log.progresso = count_files / total_files
                             log.save()
+                            print("Lendo arquivo compactado: Total= "+total+" / Inalterados= "+inalterados+" / Alterados= "+alterados+" / Novos= "+novos)
                         total += 1
                         imovel_data = {
                             # common
@@ -212,9 +213,7 @@ def read_from_geoitajai(log, file_path, r):
                         imovel_per_codigo = Imovel.objects.filter(
                             codigo=instance["properties"]["ncodimov"]
                         ).first()
-
                         imovel_status = "error"
-
                         if (
                             imovel_per_codigo
                             and imovel_per_inscricao_imobiliaria
@@ -227,9 +226,8 @@ def read_from_geoitajai(log, file_path, r):
                         else:
                             if imovel_per_codigo:
                                 imovel_status = "novo_codigo"
-                            if imovel_per_codigo:
+                            if imovel_per_inscricao_imobiliaria:
                                 imovel_status = "nova_inscricao"
-
                         if (
                             not imovel_per_codigo
                             and not imovel_per_inscricao_imobiliaria
@@ -270,7 +268,9 @@ def read_from_geoitajai(log, file_path, r):
                                 with open(
                                     file_path_error, "a", encoding="utf8"
                                 ) as f:
+                                    print("ERROR: "+zipfileInfo.filename)
                                     f.write("=======ERROR=====\n")
+                                    f.write(datetime.now().strftime("%d-%m-%Y, %H:%M:%S")+"\n")
                                     f.write(
                                         "Imóvel com erro (arquivo: "
                                         + zipfileInfo.filename
@@ -314,10 +314,91 @@ def read_from_geoitajai(log, file_path, r):
                                     f.write("Dados no arquivo:\n")
                                     f.write(str(imovel_data))
                                     f.write("\n")
+                                    f.write("\n")
+                                    f.write("Tentativa de solução:\n")
+                                    imovel_per_codigo_check_address = False
+                                    imovel_per_inscricao_imobiliaria_check_address = False
+                                    if imovel_data:
+                                        if (
+                                            imovel_per_codigo.logradouro == imovel_data["logradouro"] and
+                                            imovel_per_codigo.numero == imovel_data["numero"] and
+                                            imovel_per_codigo.bairro == imovel_data["bairro"] and
+                                            imovel_per_codigo.complemento == imovel_data["complemento"]
+                                        ):
+                                            imovel_per_codigo_check_address = True
+                                        if (
+                                            imovel_per_inscricao_imobiliaria.logradouro == imovel_data["logradouro"] and
+                                            imovel_per_inscricao_imobiliaria.numero == imovel_data["numero"] and
+                                            imovel_per_inscricao_imobiliaria.bairro == imovel_data["bairro"] and
+                                            imovel_per_inscricao_imobiliaria.complemento == imovel_data["complemento"]
+                                        ):
+                                            imovel_per_inscricao_imobiliaria_check_address = True
+                                        if (
+                                            imovel_per_codigo_check_address
+                                            and not imovel_per_inscricao_imobiliaria_check_address
+                                        ):
+                                            #conflito: prioridade imovel_per_codigo
+                                            f.write("Código confere com o endereço\n")
+                                            imovel_per_inscricao_imobiliaria.inscricao_imobiliaria = "ERROR_CHANGE_"+str(imovel_per_inscricao_imobiliaria.id)+"_IN_FAVOR_OF_"+str(imovel_per_codigo.id)
+                                            imovel_per_inscricao_imobiliaria.save()
+                                            f.write("Alterada a inscrição imobiliária do imóvel "+str(imovel_per_inscricao_imobiliaria.id)+"\n")
+                                            for attr, value in imovel_data.items():
+                                                setattr(imovel_per_codigo, attr, value)
+                                            imovel_per_codigo.save()
+                                            f.write("Mantido o imóvel "+str(imovel_per_codigo.id)+"\n")
+                                            alterados += 2
+                                            f.write("Conflito resolvido\n")
+                                        elif (
+                                            imovel_per_inscricao_imobiliaria_check_address
+                                            and not imovel_per_codigo_check_address
+                                        ):
+                                            #conflito: prioridade imovel_per_inscricao_imobiliaria
+                                            f.write("Inscrição imobiliária confere com o endereço\n")
+                                            imovel_per_codigo.codigo = "ERROR_CHANGE_"+str(imovel_per_codigo.id)+"_IN_FAVOR_OF_"+str(imovel_per_inscricao_imobiliaria.id)
+                                            imovel_per_codigo.save()
+                                            f.write("Alterado o código do imóvel "+str(imovel_per_codigo.id)+"\n")
+                                            for attr, value in imovel_data.items():
+                                                setattr(imovel_per_inscricao_imobiliaria, attr, value)
+                                            imovel_per_inscricao_imobiliaria.save()
+                                            f.write("Mantido o imóvel "+str(imovel_per_inscricao_imobiliaria.id)+"\n")
+                                            alterados += 2
+                                            f.write("Conflito resolvido\n")
+                                        elif (
+                                            imovel_per_codigo_check_address
+                                            and imovel_per_inscricao_imobiliaria_check_address
+                                        ):
+                                            #conflito: ambos com prioridade, fica imovel_per_inscricao_imobiliaria
+                                            f.write("Código e Inscrição imobiliária confere com o endereço, ambos com prioridade\n")
+                                            f.write("Por definição, fica a inscrição imobiliária\n")
+                                            imovel_per_codigo.codigo = "ERROR_CHANGE_"+str(imovel_per_codigo.id)+"_IN_FAVOR_OF_"+str(imovel_per_inscricao_imobiliaria.id)
+                                            imovel_per_codigo.save()
+                                            f.write("Alterado o código do imóvel "+str(imovel_per_codigo.id)+"\n")
+                                            for attr, value in imovel_data.items():
+                                                setattr(imovel_per_inscricao_imobiliaria, attr, value)
+                                            imovel_per_inscricao_imobiliaria.save()
+                                            f.write("Mantido o imóvel "+str(imovel_per_inscricao_imobiliaria.id)+"\n")
+                                            alterados += 2
+                                            f.write("Conflito resolvido com ressalvas\n")
+                                        else:
+                                            #conflito: sem prioridade, fica imovel_per_inscricao_imobiliaria
+                                            f.write("Código e Inscrição imobiliária NÃO confere com o endereço, sem prioridade\n")
+                                            f.write("Por definição, fica a inscrição imobiliária\n")
+                                            imovel_per_codigo.codigo = "ERROR_CHANGE_"+str(imovel_per_codigo.id)+"_IN_FAVOR_OF_"+str(imovel_per_inscricao_imobiliaria.id)
+                                            imovel_per_codigo.save()
+                                            f.write("Alterado o código do imóvel "+str(imovel_per_codigo.id)+"\n")
+                                            for attr, value in imovel_data.items():
+                                                setattr(imovel_per_inscricao_imobiliaria, attr, value)
+                                            imovel_per_inscricao_imobiliaria.save()
+                                            f.write("Mantido o imóvel "+str(imovel_per_inscricao_imobiliaria.id)+"\n")
+                                            alterados += 2
+                                            f.write("Conflito resolvido com ressalvas\n")
+                                            f.write("Nenhum dos imóveis conferem com o endereço\n")
+                                    else:
+                                        f.write("Problema na leitura do arquivo")
+                                        f.write("Sem solução")
                                     f.write("============\n")
                                     f.write("\n")
                                     f.write("\n")
-
     except Exception as e:
         print("Falha ao ler arquivo compactado")
         print(str(e))
@@ -354,7 +435,6 @@ def read_from_geoitajai(log, file_path, r):
 
 
 def update_cep_imovel(imovel):
-
     if not imovel:
         return False
 
@@ -399,6 +479,7 @@ def update_cep_imovel(imovel):
         "localidade": "Itajai",
         "logradouro": logradouro,
         "numeroLogradouro": numero,
+        "tipologradouro":"",
     }
 
     query_logradouro = Q(logradouro=imovel.logradouro)
@@ -418,9 +499,9 @@ def update_cep_imovel(imovel):
                 imovel.cep = imovel_with_cep.cep
                 imovel.save()
                 return True
-
+                
     try:
-        r = requests.get(url_str, params=data)
+        r = requests.post(url_str, data=data)
         if r.ok:
             jsonresponse = r.json()
             if jsonresponse["total"] == 1:
@@ -609,7 +690,7 @@ class migrate_from_geoitajai(generics.RetrieveAPIView):
         if not authorized:
             return Response(
                 {"detail": "Não Autorizado"},
-                status=status.HTTP_401_UNAUTHORIZED,
+                status=status.HTTP_400_BAD_REQUEST,
             )
         else:
 
@@ -799,6 +880,7 @@ class UserLatestNotice(generics.RetrieveAPIView):
     serializer_class = NoticeSerializer
 
     def get_object(self):
+
         queryset = self.request.user.notices
         imovel_id = self.request.query_params.get("imovel_id", None)
         if imovel_id:

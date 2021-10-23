@@ -9,7 +9,12 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}\\src\\manage.py",
-      "args": ["runserver", "0.0.0.0:8000", "--noreload", "--settings=eventtracker.dev_settings"],
+      "args": [
+        "runserver",
+        "0.0.0.0:8008",
+        "--noreload",
+        "--settings=eventtracker.dev_settings"
+      ],
       "django": true
     }
   ]

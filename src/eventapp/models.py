@@ -11,6 +11,19 @@ def getDefaultImovel():
 
 
 class Profile(models.Model):
+    AUDITOR = "AU"
+    ASSISTENTE = "AS"
+    PARTICULAR = "PA"
+    USERTYPE = [
+        (AUDITOR, "Auditor"),
+        (ASSISTENTE, "Assistente"),
+        (PARTICULAR, "Particular"),
+    ]
+    user_type = models.CharField(
+        max_length=2,
+        choices=USERTYPE,
+        default=PARTICULAR,
+    )
     user = models.OneToOneField(
         User, related_name="profile", on_delete=models.CASCADE, unique=True
     )
@@ -20,6 +33,15 @@ class Profile(models.Model):
 
     def __str__(self):
         return str(self.user.username)
+
+    def is_auditor(self):
+        return self.user_type == self.AUDITOR
+
+    def is_assistente(self):
+        return self.user_type == self.ASSISTENTE
+
+    def is_particular(self):
+        return self.user_type == self.PARTICULAR
 
 
 class ImovelUpdateLog(models.Model):
@@ -193,7 +215,7 @@ class NoticeEventType(models.Model):
 
 
 def auto_directory_path(instance, filename):
-    return 'notices/'+filename
+    return "notices/" + filename
 
 
 class NoticeEventTypeFile(models.Model):
@@ -208,7 +230,8 @@ class NoticeEventTypeFile(models.Model):
         ordering = ["order"]
         constraints = [
             models.UniqueConstraint(
-                fields=["name", "notice_event_type"], name="unique_name_per_type"
+                fields=["name", "notice_event_type"],
+                name="unique_name_per_type",
             )
         ]
 
@@ -217,7 +240,14 @@ class NoticeEventTypeFile(models.Model):
 
     @property
     def name_to_id(self):
-        return text_to_id("Auto " + self.notice_event_type.name.upper() + "_" + str(self.order) + "-" + self.name)
+        return text_to_id(
+            "Auto "
+            + self.notice_event_type.name.upper()
+            + "_"
+            + str(self.order)
+            + "-"
+            + self.name
+        )
 
 
 class NoticeColor(models.Model):
@@ -277,7 +307,10 @@ class NoticeEvent(models.Model):
 
     def is_frozen(self):
         for notice_appeals in self.notice_appeals.all():
-            if (notice_appeals.end_date is None or notice_appeals.end_date == ""):
+            if (
+                notice_appeals.end_date is None
+                or notice_appeals.end_date == ""
+            ):
                 return True
         return False
 
@@ -316,7 +349,7 @@ class NoticeAppeal(models.Model):
         return str(self.date) + " - " + str(self.identification)
 
     def is_frozen(self):
-        return (self.end_date is None or self.end_date != "")
+        return self.end_date is None or self.end_date != ""
 
 
 # ====SURVEYS====
