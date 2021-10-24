@@ -34,7 +34,15 @@ PG_DB_NAME event_tracker | changeme | no | Name of the database
 CORS_ALLOWED_ORIGINS |  | no | Endpoint of your frontend. To allow communication between diferent domains or subdomains.<br /> Can be multiple addresses separated with a comma (https://domainone.com,https://domaintwo.com)
 
 ### Before start
-Connect to the container, and create a superuser.
+
+Connect to the api container, and create a superuser.
 ```
 python /code/manage.py createsuperuser
+```
+
+Connect to the database container, and create the database.
+```
+psql -U user
+
+CREATE DATABASE name;
 ```
