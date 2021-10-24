@@ -32,3 +32,9 @@ PG_DB_USER | changeme | no | Name of the user to access the database
 PG_DB_PASSWORD password | changeme | no | password to access the database
 PG_DB_NAME event_tracker | changeme | no | Name of the database
 CORS_ALLOWED_ORIGINS |  | no | Endpoint of your frontend. To allow communication between diferent domains or subdomains.<br /> Can be multiple addresses separated with a comma (https://domainone.com,https://domaintwo.com)
+
+### Before start
+Connect to the container, and create a superuser.
+```
+python /code/manage.py createsuperuser
+```
