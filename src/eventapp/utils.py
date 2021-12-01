@@ -65,10 +65,11 @@ def add_days(from_date, number_of_days, business_days=False):
 
 def count_days(from_date, to_date, business_days=False):
     number_of_days = 0
-    while from_date < to_date:
-        from_date += timedelta(1)
-        if from_date.weekday() < 5 or not business_days:
-            number_of_days += 1
+    if from_date and to_date:
+        while from_date < to_date:
+            from_date += timedelta(1)
+            if from_date.weekday() < 5 or not business_days:
+                number_of_days += 1
     return number_of_days
 
 

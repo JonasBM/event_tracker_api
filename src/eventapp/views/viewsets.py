@@ -1,38 +1,20 @@
 from django.contrib.auth.models import User
 from django.db.models import Case, Q, When
-from eventapp.models import (
-    Activity,
-    Imovel,
-    Notice,
-    NoticeColor,
-    NoticeEventType,
-    NoticeEventTypeFile,
-    ReportEvent,
-    ReportEventType,
-    SurveyEvent,
-    SurveyEventType,
-)
-from eventapp.serializers import (
-    ActivitySerializer,
-    ImovelSerializer,
-    NoticeColorSerializer,
-    NoticeEventTypeFileSerializer,
-    NoticeEventTypeSerializer,
-    NoticeSerializer,
-    ReportEventSerializer,
-    ReportEventTypeSerializer,
-    SurveyEventSerializer,
-    SurveyEventTypeSerializer,
-    UserProfileSerializer,
-    UserSerializer,
-)
+from eventapp.models import (Activity, Imovel, Notice, NoticeColor,
+                             NoticeEventType, NoticeEventTypeFile, Profile, ReportEvent,
+                             ReportEventType, SurveyEvent, SurveyEventType)
+from eventapp.serializers import (ActivitySerializer, ImovelSerializer,
+                                  NoticeColorSerializer,
+                                  NoticeEventTypeFileSerializer,
+                                  NoticeEventTypeSerializer, NoticeSerializer,
+                                  ReportEventSerializer,
+                                  ReportEventTypeSerializer,
+                                  SurveyEventSerializer,
+                                  SurveyEventTypeSerializer,
+                                  UserProfileSerializer, UserSerializer)
 from eventapp.utils import getDateFromString
-from eventapp.views.permissions import (
-    IsAdminUserOrIsAuthenticatedReadOnly,
-    IsAdminUserOrIsOwner,
-    IsOwnerOrIsAuthenticatedReadOnly,
-    IsAuditorOrIsAuthenticatedReadOnly,
-)
+from eventapp.views.permissions import (IsAdminUserOrIsAuthenticatedReadOnly,
+                                        IsAdminUserOrIsOwner,)
 from rest_framework import permissions, status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -214,23 +196,28 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = UserSerializer
 
     def get_queryset(self):
+        queryset = User.objects
+        assistente_only = self.request.query_params.get("assistente_only", False)
+        if assistente_only:
+            queryset = queryset.filter(profile__user_type=Profile.ASSISTENTE)
+
         if self.request.user.is_superuser:
-            return User.objects.order_by(
+            return queryset.order_by(
                 Case(When(id=self.request.user.id, then=0), default=1),
                 "first_name",
                 "last_name",
             ).all()
         elif (
             self.request.user.is_staff
-            or self.request.user.profile.is_auditor()
+            or not self.request.user.profile.is_particular()
         ):
-            return User.objects.order_by(
+            return queryset.order_by(
                 Case(When(id=self.request.user.id, then=0), default=1),
                 "first_name",
                 "last_name",
             ).filter(is_superuser=False)
         else:
-            return User.objects.filter(id=self.request.user.id)
+            return queryset.filter(id=self.request.user.id)
 
 
 class NoticeEventTypeViewSet(viewsets.ModelViewSet):
@@ -276,7 +263,7 @@ class ReportEventTypeViewSet(viewsets.ModelViewSet):
 
 class UserNoticeViewSet(viewsets.ModelViewSet):
     permission_classes = [
-        IsAuditorOrIsAuthenticatedReadOnly,
+        permissions.IsAuthenticated,
     ]
     serializer_class = NoticeSerializer
 
@@ -290,11 +277,15 @@ class UserNoticeViewSet(viewsets.ModelViewSet):
 
         if (
             not self.request.user.is_staff
-            or not self.request.user.profile.is_auditor()
+            and self.request.user.profile.is_particular()
         ):
             queryset = Notice.objects.filter(owner=self.request.user)
         else:
-            queryset = Notice.objects
+            user_id = self.request.query_params.get("user_id", None)
+            if user_id:
+                queryset = Notice.objects.filter(owner=user_id)
+            else:
+                queryset = Notice.objects
 
         if start_date and end_date:
             query_notice = Q(notice_events__date__range=[start_date, end_date])
@@ -354,25 +345,35 @@ class UserNoticeViewSet(viewsets.ModelViewSet):
         return queryset
 
     def create(self, request, *args, **kwargs):
-
-        if self.request.user.profile.is_assistente():
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
-        request.data["owner"] = request.user.id
-        if "imovel_id" not in request.data.keys():
-            request.data["imovel_id"] = 0
-        return super(UserNoticeViewSet, self).create(request, *args, **kwargs)
+        owner_user = User.objects.get(id=request.data["owner"])
+        if (
+            owner_user and
+            owner_user.profile.has_my_permission(request.user) and
+            not owner_user.profile.is_assistente()
+        ):
+            if "imovel_id" not in request.data.keys():
+                request.data["imovel_id"] = 0
+            request.data["last_user_to_update"] = request.user.id
+            return super(UserNoticeViewSet, self).create(request, *args, **kwargs)
+        return Response({"detail": "Não Autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
     def update(self, request, *args, **kwargs):
-        request.data["owner"] = request.user.id
-        if "imovel_id" not in request.data.keys():
-            request.data["imovel_id"] = 0
-        return super(UserNoticeViewSet, self).update(request, *args, **kwargs)
+        owner_user = User.objects.get(id=request.data["owner"])
+        if (
+            owner_user and
+            owner_user.profile.has_my_permission(request.user) and
+            not owner_user.profile.is_assistente()
+        ):
+            if "imovel_id" not in request.data.keys():
+                request.data["imovel_id"] = 0
+            request.data["last_user_to_update"] = request.user.id
+            return super(UserNoticeViewSet, self).update(request, *args, **kwargs)
+        return Response({"detail": "Não Autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
 
 class UserSurveyEventViewSet(viewsets.ModelViewSet):
     permission_classes = [
-        IsAuditorOrIsAuthenticatedReadOnly,
+        permissions.IsAuthenticated,
     ]
     serializer_class = SurveyEventSerializer
 
@@ -387,11 +388,15 @@ class UserSurveyEventViewSet(viewsets.ModelViewSet):
 
         if (
             not self.request.user.is_staff
-            or not self.request.user.profile.is_auditor()
+            and self.request.user.profile.is_particular()
         ):
             queryset = SurveyEvent.objects.filter(owner=self.request.user)
         else:
-            queryset = SurveyEvent.objects
+            user_id = self.request.query_params.get("user_id", None)
+            if user_id:
+                queryset = SurveyEvent.objects.filter(owner=user_id)
+            else:
+                queryset = SurveyEvent.objects
 
         if start_date and end_date:
             query_survey = Q(date__range=[start_date, end_date])
@@ -434,29 +439,39 @@ class UserSurveyEventViewSet(viewsets.ModelViewSet):
         return queryset
 
     def create(self, request, *args, **kwargs):
-
-        if self.request.user.profile.is_assistente():
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
-        request.data["owner"] = request.user.id
-        if "imovel_id" not in request.data.keys():
-            request.data["imovel_id"] = 0
-        return super(UserSurveyEventViewSet, self).create(
-            request, *args, **kwargs
-        )
+        owner_user = User.objects.get(id=request.data["owner"])
+        if (
+            owner_user and
+            owner_user.profile.has_my_permission(request.user) and
+            not owner_user.profile.is_assistente()
+        ):
+            if "imovel_id" not in request.data.keys():
+                request.data["imovel_id"] = 0
+            request.data["last_user_to_update"] = request.user.id
+            return super(UserSurveyEventViewSet, self).create(
+                request, *args, **kwargs
+            )
+        return Response({"detail": "Não Autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
     def update(self, request, *args, **kwargs):
-        request.data["owner"] = request.user.id
-        if "imovel_id" not in request.data.keys():
-            request.data["imovel_id"] = 0
-        return super(UserSurveyEventViewSet, self).update(
-            request, *args, **kwargs
-        )
+        owner_user = User.objects.get(id=request.data["owner"])
+        if (
+            owner_user and
+            owner_user.profile.has_my_permission(request.user) and
+            not owner_user.profile.is_assistente()
+        ):
+            if "imovel_id" not in request.data.keys():
+                request.data["imovel_id"] = 0
+            request.data["last_user_to_update"] = request.user.id
+            return super(UserSurveyEventViewSet, self).update(
+                request, *args, **kwargs
+            )
+        return Response({"detail": "Não Autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
 
 class UserReportEventViewSet(viewsets.ModelViewSet):
     permission_classes = [
-        IsOwnerOrIsAuthenticatedReadOnly,
+        permissions.IsAuthenticated,
     ]
     serializer_class = ReportEventSerializer
 
@@ -471,11 +486,15 @@ class UserReportEventViewSet(viewsets.ModelViewSet):
 
         if (
             not self.request.user.is_staff
-            or not self.request.user.profile.is_auditor()
+            and self.request.user.profile.is_particular()
         ):
             queryset = ReportEvent.objects.filter(owner=self.request.user)
         else:
-            queryset = ReportEvent.objects
+            user_id = self.request.query_params.get("user_id", None)
+            if user_id:
+                queryset = ReportEvent.objects.filter(owner=user_id)
+            else:
+                queryset = ReportEvent.objects
 
         if start_date and end_date:
             query_report = Q(date__range=[start_date, end_date])
@@ -518,25 +537,31 @@ class UserReportEventViewSet(viewsets.ModelViewSet):
         return queryset
 
     def create(self, request, *args, **kwargs):
-        request.data["owner"] = request.user.id
-        if "imovel_id" not in request.data.keys():
-            request.data["imovel_id"] = 0
-        return super(UserReportEventViewSet, self).create(
-            request, *args, **kwargs
-        )
+        owner_user = User.objects.get(id=request.data["owner"])
+        if owner_user and owner_user.profile.has_my_permission(request.user):
+            if "imovel_id" not in request.data.keys():
+                request.data["imovel_id"] = 0
+            request.data["last_user_to_update"] = request.user.id
+            return super(UserReportEventViewSet, self).create(
+                request, *args, **kwargs
+            )
+        return Response({"detail": "Não Autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
     def update(self, request, *args, **kwargs):
-        request.data["owner"] = request.user.id
-        if "imovel_id" not in request.data.keys():
-            request.data["imovel_id"] = 0
-        return super(UserReportEventViewSet, self).update(
-            request, *args, **kwargs
-        )
+        owner_user = User.objects.get(id=request.data["owner"])
+        if owner_user and owner_user.profile.has_my_permission(request.user):
+            if "imovel_id" not in request.data.keys():
+                request.data["imovel_id"] = 0
+            request.data["last_user_to_update"] = request.user.id
+            return super(UserReportEventViewSet, self).update(
+                request, *args, **kwargs
+            )
+        return Response({"detail": "Não Autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
 
 class UserActivityViewSet(viewsets.ModelViewSet):
     permission_classes = [
-        IsOwnerOrIsAuthenticatedReadOnly,
+        permissions.IsAuthenticated,
     ]
     serializer_class = ActivitySerializer
 
@@ -550,11 +575,15 @@ class UserActivityViewSet(viewsets.ModelViewSet):
 
         if (
             not self.request.user.is_staff
-            or not self.request.user.profile.is_auditor()
+            and self.request.user.profile.is_particular()
         ):
             queryset = Activity.objects.filter(owner=self.request.user)
         else:
-            queryset = Activity.objects
+            user_id = self.request.query_params.get("user_id", None)
+            if user_id:
+                queryset = Activity.objects.filter(owner=user_id)
+            else:
+                queryset = Activity.objects
 
         if start_date and end_date:
             query_activity = Q(date__range=[start_date, end_date])
@@ -570,13 +599,19 @@ class UserActivityViewSet(viewsets.ModelViewSet):
         return queryset
 
     def create(self, request, *args, **kwargs):
-        request.data["owner"] = request.user.id
-        return super(UserActivityViewSet, self).create(
-            request, *args, **kwargs
-        )
+        owner_user = User.objects.get(id=request.data["owner"])
+        if owner_user and owner_user.profile.has_my_permission(request.user):
+            request.data["last_user_to_update"] = request.user.id
+            return super(UserActivityViewSet, self).create(
+                request, *args, **kwargs
+            )
+        return Response({"detail": "Não Autorizado"}, status=status.HTTP_403_FORBIDDEN)
 
     def update(self, request, *args, **kwargs):
-        request.data["owner"] = request.user.id
-        return super(UserActivityViewSet, self).update(
-            request, *args, **kwargs
-        )
+        owner_user = User.objects.get(id=request.data["owner"])
+        if owner_user and owner_user.profile.has_my_permission(request.user):
+            request.data["last_user_to_update"] = request.user.id
+            return super(UserActivityViewSet, self).update(
+                request, *args, **kwargs
+            )
+        return Response({"detail": "Não Autorizado"}, status=status.HTTP_403_FORBIDDEN)

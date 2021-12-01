@@ -30,6 +30,7 @@ class Profile(models.Model):
     matricula = models.CharField(
         max_length=255, null=True, blank=True, default=""
     )
+    assistentes = models.ManyToManyField(User, related_name="auditores", null=True, blank=True)
 
     def __str__(self):
         return str(self.user.username)
@@ -42,6 +43,17 @@ class Profile(models.Model):
 
     def is_particular(self):
         return self.user_type == self.PARTICULAR
+
+    def has_my_permission(self, user):
+        if user.id == self.id:
+            return True
+        return user in self.assistentes.all()
+
+    def my_auditores(self):
+        user_auditores = []
+        for auditor in self.user.auditores.all():
+            user_auditores.append(auditor.user.id)
+        return user_auditores
 
 
 class ImovelUpdateLog(models.Model):
@@ -169,6 +181,8 @@ class Notice(models.Model):
     owner = models.ForeignKey(
         User, related_name="notices", on_delete=models.CASCADE
     )
+    last_user_to_update = models.ForeignKey(User, on_delete=models.DO_NOTHING)
+    updated = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["date", "id"]
@@ -396,6 +410,8 @@ class SurveyEvent(models.Model):
     owner = models.ForeignKey(
         User, related_name="surveys", on_delete=models.CASCADE
     )
+    last_user_to_update = models.ForeignKey(User, on_delete=models.DO_NOTHING)
+    updated = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["date", "survey_event_type", "id"]
@@ -451,6 +467,8 @@ class ReportEvent(models.Model):
     owner = models.ForeignKey(
         User, related_name="reports", on_delete=models.CASCADE
     )
+    last_user_to_update = models.ForeignKey(User, on_delete=models.DO_NOTHING)
+    updated = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["date", "report_event_type", "id"]
@@ -469,6 +487,8 @@ class Activity(models.Model):
     owner = models.ForeignKey(
         User, related_name="activitys", on_delete=models.CASCADE
     )
+    last_user_to_update = models.ForeignKey(User, on_delete=models.DO_NOTHING)
+    updated = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["date", "id"]

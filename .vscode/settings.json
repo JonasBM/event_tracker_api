@@ -1,24 +1,11 @@
 {
-  "python.pythonPath": "C:\\Users\\Jonas\\Documents\\WEB DEV\\event_tracker\\backend\\eventtracker_api\\env\\Scripts\\python.exe",
+  "python.pythonPath": ".venv/bin/python",
   "python.autoComplete.extraPaths": [
-    "C:\\Users\\Jonas\\Documents\\WEB DEV\\event_tracker\\backend\\eventtracker_api\\env\\Lib\\site-packages"
+    ".venv/lib/python3.7/site-packages",
+    ".venv/lib64/python3.7/site-packages"
   ],
-  "python.linting.enabled": true,
-  "python.linting.pylintEnabled": false,
-  "python.linting.pylintArgs": [
-    "--disable=C0111", // missing docstring
-    "--load-plugins=pylint_django,pylint_celery",
-    "--enable=W0614",
-    "--enable=W0611"
-  ],
-  "python.linting.flake8Enabled": true,
-  "python.formatting.blackArgs": ["--line-length", "79"],
-  "python.linting.flake8Args": ["--max-line-length=120"],
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "css.validate": false,
-  "less.validate": false,
-  "scss.validate": false,
   "python.analysis.extraPaths": [
-    "C:\\Users\\Jonas\\Documents\\WEB DEV\\event_tracker\\backend\\eventtracker_api\\env\\Lib\\site-packages"
+    ".venv/lib/python3.7/site-packages",
+    ".venv/lib64/python3.7/site-packages"
   ]
 }

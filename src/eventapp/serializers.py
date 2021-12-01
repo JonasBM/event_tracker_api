@@ -2,24 +2,11 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from rest_framework import serializers
 
-from eventapp.models import (
-    Activity,
-    Imovel,
-    ImovelUpdateLog,
-    Notice,
-    NoticeAppeal,
-    NoticeColor,
-    NoticeEvent,
-    NoticeEventType,
-    NoticeEventTypeFile,
-    NoticeFine,
-    Profile,
-    ReportEvent,
-    ReportEventType,
-    SurveyEvent,
-    SurveyEventType,
-    getDefaultImovel,
-)
+from eventapp.models import (Activity, Imovel, ImovelUpdateLog, Notice,
+                             NoticeAppeal, NoticeColor, NoticeEvent,
+                             NoticeEventType, NoticeEventTypeFile, NoticeFine,
+                             Profile, ReportEvent, ReportEventType,
+                             SurveyEvent, SurveyEventType, getDefaultImovel)
 from eventapp.utils import add_days, count_days
 
 
@@ -29,20 +16,22 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = (
             "user_type",
             "matricula",
+            "assistentes",
             "is_auditor",
             "is_assistente",
             "is_particular",
+            "my_auditores",
         )
         read_only_fields = (
             "is_auditor",
             "is_assistente",
             "is_particular",
+            "my_auditores",
         )
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer(required=False)
-
     last_login = serializers.DateTimeField(
         read_only=True, format="%Y-%m-%dT%H:%M"
     )
@@ -68,7 +57,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
             profile_data = validated_data.pop("profile")
         user = User.objects.create(**validated_data)
         if profile_data:
-            Profile.objects.create(user=user, **profile_data)
+            assistentes = profile_data.pop('assistentes')
+            profile = Profile.objects.create(user=user, **profile_data)
+            profile.assistentes.set(assistentes)
         else:
             Profile.objects.create(user=user)
         return user
@@ -85,9 +76,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if not profile:
             profile = Profile.objects.create(user=instance)
         if profile_data:
+            assistentes = profile_data.pop('assistentes')
             for attr, value in profile_data.items():
                 setattr(profile, attr, value)
             profile.save()
+            profile.assistentes.set(assistentes)
         return instance
 
 
@@ -238,26 +231,18 @@ def update_or_create_multiple_notice_events(
 
         extensions = 0
 
-        print("notice_appeals_data: " + str(notice_appeals_data))
         for notice_appeal in notice_appeals_data:
             if "extension" in notice_appeal.keys():
-                print("extension: " + str(notice_appeal["extension"]))
                 extensions += notice_appeal["extension"]
             if (
                 "start_date" in notice_appeal.keys()
                 and "end_date" in notice_appeal.keys()
             ):
-                teste = count_days(
-                    notice_appeal["start_date"],
-                    notice_appeal["end_date"],
-                    notice_event["deadline_working_days"],
-                )
                 extensions += count_days(
                     notice_appeal["start_date"],
                     notice_appeal["end_date"],
                     notice_event["deadline_working_days"],
                 )
-                print("count: " + str(teste))
 
         deadline_date = add_days(
             notice_event["date"],
@@ -350,6 +335,7 @@ class NoticeSerializer(serializers.ModelSerializer):
     date = serializers.DateField(format="%Y-%m-%d")
     imovel = ImovelSerializer(many=False, read_only=True)
     imovel_id = serializers.IntegerField()
+    updated = serializers.DateTimeField(format="%Y-%m-%d", read_only=True)
 
     class Meta:
         model = Notice
@@ -362,10 +348,12 @@ class NoticeSerializer(serializers.ModelSerializer):
             "address",
             "description",
             "owner",
+            "last_user_to_update",
+            "updated",
             "notice_events",
             "css_name",
         )
-        read_only_fields = ("css_name",)
+        read_only_fields = ("updated", "css_name",)
 
     @transaction.atomic
     def create(self, validated_data):
@@ -434,6 +422,7 @@ class SurveyEventSerializer(serializers.ModelSerializer):
             "description",
             "concluded",
             "owner",
+            "last_user_to_update",
         )
 
     @transaction.atomic
@@ -478,6 +467,7 @@ class ReportEventSerializer(serializers.ModelSerializer):
             "description",
             "concluded",
             "owner",
+            "last_user_to_update",
         )
 
     @transaction.atomic
