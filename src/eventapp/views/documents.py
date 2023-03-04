@@ -57,9 +57,9 @@ class ReportPDF(generics.RetrieveAPIView):
             if user_instance:
                 user = user_instance
 
-        if self.request.user != user:
+        if not self.request.user.profile.is_auditor():
             if (
-                self.request.user.profile.is_assistente()
+                not user.profile.has_my_permission(request.user)
                 or self.request.user.profile.is_particular()
             ):
                 return Response(status=status.HTTP_403_FORBIDDEN)
@@ -253,9 +253,9 @@ class sheetCSV(generics.RetrieveAPIView):
             if user_instance:
                 user = user_instance
 
-        if self.request.user != user:
+        if not self.request.user.profile.is_auditor():
             if (
-                self.request.user.profile.is_assistente()
+                not user.profile.has_my_permission(request.user)
                 or self.request.user.profile.is_particular()
             ):
                 return Response(status=status.HTTP_403_FORBIDDEN)
@@ -377,14 +377,19 @@ class NoticeReportDocx(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         locale.setlocale(locale.LC_TIME, "pt_BR")
 
-        if self.request.user.profile.is_assistente():
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
         notice_id = self.request.query_params.get("notice_id", None)
         if notice_id:
             notice = Notice.objects.filter(id=notice_id).first()
 
             if notice:
+
+                if not self.request.user.profile.is_auditor():
+                    if (
+                        not notice.owner.profile.has_my_permission(request.user)
+                        or self.request.user.profile.is_particular()
+                    ):
+                        return Response(status=status.HTTP_403_FORBIDDEN)
+
                 if not notice.imovel:
                     return Response(
                         {
@@ -452,11 +457,18 @@ class NoticeReportDocx(generics.RetrieveAPIView):
                                     "numero_VA",
                                     va_identification,
                                 )
-
-                            if "AFM_nome_completo" in r.text:
+                            
+                            if "afm_nome_completo" in r.text:
                                 r.text = r.text.replace(
-                                    "AFM_nome_completo",
-                                    "AFM " + notice.owner.get_full_name(),
+                                    "afm_nome_completo",
+                                    notice.owner.get_full_name(),
+                                )
+                                
+
+                            if "afm_matricula" in r.text:
+                                r.text = r.text.replace(
+                                    "afm_matricula",
+                                    notice.owner.profile.matricula,
                                 )
 
                             if "endereço_completo" in r.text:
@@ -579,9 +591,6 @@ class VARequestDocx(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         locale.setlocale(locale.LC_TIME, "pt_BR")
 
-        if self.request.user.profile.is_assistente():
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
         vistoria_administrativa_id = self.request.query_params.get(
             "vistoria_administrativa_id", None
         )
@@ -592,6 +601,13 @@ class VARequestDocx(generics.RetrieveAPIView):
 
             if vistoria_administrativa:
                 notice = vistoria_administrativa.notice
+
+                if not self.request.user.profile.is_auditor():
+                    if (
+                        not notice.owner.profile.has_my_permission(request.user)
+                        or self.request.user.profile.is_particular()
+                    ):
+                        return Response(status=status.HTTP_403_FORBIDDEN)
 
                 if not notice.imovel:
                     return Response(
@@ -851,10 +867,6 @@ class FileVARequestDocx(generics.ListCreateAPIView):
     ]
 
     def get(self, request, *args, **kwargs):
-
-        if self.request.user.profile.is_assistente():
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
         file_path = os.path.join(
             settings.MEDIA_ROOT, "relatorio_padrao", "va_padrao.docx"
         )
@@ -896,7 +908,6 @@ class FileRFRequestDocx(generics.ListCreateAPIView):
     ]
 
     def get(self, request, *args, **kwargs):
-
         file_path = os.path.join(
             settings.MEDIA_ROOT, "relatorio_padrao", "rf_padrao.docx"
         )
@@ -940,9 +951,6 @@ class downloadNotification(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         locale.setlocale(locale.LC_TIME, "pt_BR")
 
-        if self.request.user.profile.is_assistente():
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
         notice_event_reference = self.request.query_params.get(
             "notice_event_reference", None
         )
@@ -966,9 +974,17 @@ class downloadNotification(generics.RetrieveAPIView):
             ).first()
 
         if notice_event_type_file and notice_event:
+
             file_path = notice_event_type_file.file_doc.path
 
             user = notice_event.notice.owner
+
+            if not self.request.user.profile.is_auditor():
+                if (
+                    not user.profile.has_my_permission(request.user)
+                    or (self.request.user.profile.is_particular() and user != self.request.user)
+                ):
+                    return Response(status=status.HTTP_403_FORBIDDEN)
 
             address_string = ""
             if notice_event.notice.imovel.logradouro:

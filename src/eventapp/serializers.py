@@ -38,6 +38,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     date_joined = serializers.DateTimeField(
         read_only=True, format="%Y-%m-%dT%H:%M"
     )
+    
 
     class Meta:
         model = User
@@ -57,7 +58,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
             profile_data = validated_data.pop("profile")
         user = User.objects.create(**validated_data)
         if profile_data:
-            assistentes = profile_data.pop('assistentes')
+            assistentes = []
+            if "assistentes" in validated_data.keys():
+                assistentes = profile_data.pop('assistentes')
             profile = Profile.objects.create(user=user, **profile_data)
             profile.assistentes.set(assistentes)
         else:
@@ -85,17 +88,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+
+    is_assistente = serializers.SerializerMethodField(read_only=True)
+
+    def get_is_assistente(self, obj):
+        return obj.profile.user_type == Profile.ASSISTENTE
+
     class Meta:
         model = User
         fields = (
             "id",
             "first_name",
             "last_name",
+            "is_assistente",
         )
         read_only_fields = (
             "id",
             "first_name",
             "last_name",
+            "is_assistente",
         )
 
 
@@ -184,7 +195,7 @@ class NoticeFineSerializer(serializers.ModelSerializer):
 class NoticeEventSerializer(serializers.ModelSerializer):
     notice_fines = NoticeFineSerializer(many=True, required=False)
     notice_appeals = NoticeAppealSerializer(many=True, required=False)
-    deadline_date = serializers.DateField(format="%Y-%m-%d", required=False)
+    deadline_date = serializers.DateField(format="%Y-%m-%d", required=False, read_only=True)
     id = serializers.IntegerField(required=False)
 
     class Meta:

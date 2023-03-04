@@ -315,7 +315,7 @@ def read_from_geoitajai(log, file_path, r):
                                     f.write(str(imovel_data))
                                     f.write("\n")
                                     f.write("\n")
-                                    f.write("Tentativa de solução:\n")
+                                    f.write("Tentativa de solição:\n")
                                     imovel_per_codigo_check_address = False
                                     imovel_per_inscricao_imobiliaria_check_address = False
                                     if imovel_data:

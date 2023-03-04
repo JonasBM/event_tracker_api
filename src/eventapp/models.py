@@ -45,7 +45,7 @@ class Profile(models.Model):
         return self.user_type == self.PARTICULAR
 
     def has_my_permission(self, user):
-        if user.id == self.id:
+        if self.user.id == user.id:
             return True
         return user in self.assistentes.all()
 

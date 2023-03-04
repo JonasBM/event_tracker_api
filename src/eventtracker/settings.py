@@ -11,13 +11,10 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 import os
 from datetime import timedelta
-
-from dotenv import load_dotenv
-
-load_dotenv()
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = os.path.realpath(os.path.dirname(__file__))
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # Quick-start development settings - unsuitable for production
@@ -33,8 +30,6 @@ ALLOWED_HOSTS = []
 ALLOWED_HOSTS_ENV = os.environ.get("ALLOWED_HOSTS", "*")
 if ALLOWED_HOSTS_ENV:
     ALLOWED_HOSTS.extend(ALLOWED_HOSTS_ENV.split(","))
-
-CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
 

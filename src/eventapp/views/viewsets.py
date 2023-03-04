@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.db.models import Case, Q, When
 from eventapp.models import (Activity, Imovel, Notice, NoticeColor,
-                             NoticeEventType, NoticeEventTypeFile, Profile, ReportEvent,
+                             NoticeEventType, NoticeEventTypeFile, ReportEvent,
                              ReportEventType, SurveyEvent, SurveyEventType)
 from eventapp.serializers import (ActivitySerializer, ImovelSerializer,
                                   NoticeColorSerializer,
@@ -46,9 +46,11 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             password = None
             if "password" in request.data.keys():
                 password = request.data.pop("password")
+            print('create')
             response = super(UserProfileViewSet, self).create(
                 request, *args, **kwargs
             )
+            print('super')
             if password:
                 user = User.objects.filter(id=response.data["id"]).first()
                 if user:
@@ -197,12 +199,12 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = User.objects
-        assistente_only = self.request.query_params.get("assistente_only", False)
-        if assistente_only:
-            queryset = queryset.filter(profile__user_type=Profile.ASSISTENTE)
+        # assistente_only = self.request.query_params.get("assistente_only", False)
+        # if assistente_only:
+        #     queryset = queryset.filter(profile__user_type=Profile.ASSISTENTE)
 
         if self.request.user.is_superuser:
-            return queryset.order_by(
+            queryset = queryset.order_by(
                 Case(When(id=self.request.user.id, then=0), default=1),
                 "first_name",
                 "last_name",
@@ -211,13 +213,14 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             self.request.user.is_staff
             or not self.request.user.profile.is_particular()
         ):
-            return queryset.order_by(
+            queryset = queryset.order_by(
                 Case(When(id=self.request.user.id, then=0), default=1),
                 "first_name",
                 "last_name",
             ).filter(is_superuser=False)
         else:
-            return queryset.filter(id=self.request.user.id)
+            queryset = queryset.filter(id=self.request.user.id)
+        return queryset
 
 
 class NoticeEventTypeViewSet(viewsets.ModelViewSet):
