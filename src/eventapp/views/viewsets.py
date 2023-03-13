@@ -46,11 +46,9 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             password = None
             if "password" in request.data.keys():
                 password = request.data.pop("password")
-            print('create')
             response = super(UserProfileViewSet, self).create(
                 request, *args, **kwargs
             )
-            print('super')
             if password:
                 user = User.objects.filter(id=response.data["id"]).first()
                 if user:

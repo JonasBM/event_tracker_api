@@ -34,10 +34,15 @@ urlpatterns = [
         name="latestnotice",
     ),
     path(r"changepassword/", generics.ChangePasswordView.as_view()),
+    # path(
+    #     r"geoitajai/",
+    #     generics.migrate_from_geoitajai.as_view(),
+    #     name="geoitajai",
+    # ),
     path(
-        r"geoitajai/",
-        generics.migrate_from_geoitajai.as_view(),
-        name="geoitajai",
+        r"update-imovel/",
+        generics.update_imovel.as_view(),
+        name="update-imovel",
     ),
     path(
         r"imovelupdatelog/",
@@ -45,9 +50,6 @@ urlpatterns = [
         name="imovelupdatelog",
     ),
     path(r"buscacep/", generics.buscacep.as_view(), name="buscacep"),
-    path(
-        r"migrafromolddb/", generics.migra_from_old_db, name="migrafromolddb"
-    ),
 ]
 
 urlpatterns += [

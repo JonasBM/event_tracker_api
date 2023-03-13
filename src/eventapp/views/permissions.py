@@ -22,9 +22,7 @@ class IsOwnerOrIsAuthenticatedReadOnly(permissions.IsAuthenticated):
 class IsAuditorOrIsAuthenticatedReadOnly(permissions.IsAuthenticated):
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
-            print("SAFE_METHODS")
             return request.user.is_authenticated
-        print("NOT_SAFE_METHODS")
         if request.user.profile.is_auditor():
             return obj.owner == request.user
         return False

@@ -38,7 +38,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     date_joined = serializers.DateTimeField(
         read_only=True, format="%Y-%m-%dT%H:%M"
     )
-    
 
     class Meta:
         model = User
@@ -129,11 +128,11 @@ class ImovelSerializer(serializers.ModelSerializer):
             "area_lote",
             "inscricao_imobiliaria",
             "codigo",
-            "matricula",
             "razao_social",
             "complemento",
             "numero_contribuinte",
             "name_string",
+            'cnpj_cpf',
         )
         read_only_fields = ("name_string",)
 

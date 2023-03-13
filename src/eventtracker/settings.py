@@ -12,31 +12,25 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 from datetime import timedelta
 from pathlib import Path
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("SECRET_KEY", "secretkeyissecret")
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = bool(int(os.environ.get("DEBUG", 1)))
+SECRET_KEY = env('SECRET_KEY', default='secretkeyissecrete')
+DEBUG = env.bool('DEBUG', default=False)
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-ALLOWED_HOSTS = []
-ALLOWED_HOSTS_ENV = os.environ.get("ALLOWED_HOSTS", "")
-if ALLOWED_HOSTS_ENV:
-    ALLOWED_HOSTS.extend(ALLOWED_HOSTS_ENV.split(","))
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
-CORS_ALLOWED_ORIGINS = []
-CORS_ALLOWED_ORIGINS_ENV = os.environ.get("CORS_ALLOWED_ORIGINS", "")
-if CORS_ALLOWED_ORIGINS_ENV:
-    CORS_ALLOWED_ORIGINS.extend(CORS_ALLOWED_ORIGINS_ENV.split(","))
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
 
 
 CORS_EXPOSE_HEADERS = (
@@ -122,11 +116,11 @@ WSGI_APPLICATION = "eventtracker.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": os.environ.get("PG_DB_NAME", "changeme"),
-        "USER": os.environ.get("PG_DB_USER", "changeme"),
-        "PASSWORD": os.environ.get("PG_DB_PASSWORD", "changeme"),
-        "HOST": os.environ.get("PG_DB_HOST", "changeme"),
-        "PORT": os.environ.get("PG_DB_PORT", "5432"),
+        "NAME": env('PG_DB_NAME', default='changeme'),
+        "USER": env('PG_DB_USER', default='changeme'),
+        "PASSWORD": env('PG_DB_PASSWORD', default='changeme'),
+        "HOST": env('PG_DB_HOST', default='changeme'),
+        "PORT": env('PG_DB_PORT', default='5432'),
     }
 }
 
@@ -170,7 +164,9 @@ USE_TZ = True
 STATIC_URL = "/static/static/"
 MEDIA_URL = "/static/media/"
 
-STATIC_ROOT = "/static/static/"
-MEDIA_ROOT = "/static/media/"
+# STATIC_ROOT = "/static/static/"
+# MEDIA_ROOT = "/static/media/"
+STATIC_ROOT = "static/static/"
+MEDIA_ROOT = "static/media/"
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

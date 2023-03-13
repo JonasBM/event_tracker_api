@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 from eventapp.utils import text_to_id
+from eventtracker.custom_fields import NumberCharField
 
 
 def getDefaultImovel():
@@ -30,7 +31,7 @@ class Profile(models.Model):
     matricula = models.CharField(
         max_length=255, null=True, blank=True, default=""
     )
-    assistentes = models.ManyToManyField(User, related_name="auditores", null=True, blank=True)
+    assistentes = models.ManyToManyField(User, related_name="auditores", blank=True)
 
     def __str__(self):
         return str(self.user.username)
@@ -58,8 +59,8 @@ class Profile(models.Model):
 
 class ImovelUpdateLog(models.Model):
     state = models.SmallIntegerField(default=0)
-    datetime_started = models.DateTimeField(default=timezone.now)
-    datetime = models.DateTimeField(default=timezone.now)
+    datetime_started = models.DateTimeField(auto_now_add=True)
+    datetime = models.DateTimeField(auto_now=True)
     status = models.CharField(
         max_length=255, null=True, blank=True, default=""
     )
@@ -67,6 +68,7 @@ class ImovelUpdateLog(models.Model):
     inalterados = models.IntegerField(default=0)
     alterados = models.IntegerField(default=0)
     novos = models.IntegerField(default=0)
+    falhas = models.IntegerField(default=0)
     response = models.CharField(
         max_length=255, null=True, blank=True, default=""
     )
@@ -82,50 +84,24 @@ class Imovel(models.Model):
 
     # common
     codigo_lote = models.CharField(max_length=255)  # inscrlig
-    logradouro = models.CharField(
-        max_length=255, null=True, blank=True, default=""
-    )  # nlogrado
-    numero = models.CharField(
-        max_length=255, null=True, blank=True, default="S/N"
-    )  # nnumimov
-    bairro = models.CharField(
-        max_length=255, null=True, blank=True, default=""
-    )  # nnomebai
+    logradouro = models.CharField(max_length=255, null=True, blank=True, default="")
+    numero = models.CharField(max_length=255, null=True, blank=True, default="S/N")
+    bairro = models.CharField(max_length=255, null=True, blank=True, default="")
     cep = models.CharField(max_length=255, null=True, blank=True, default="")
-    area_lote = models.DecimalField(
-        max_digits=10, decimal_places=2, null=True
-    )  # nareater
+    area_lote = models.DecimalField(max_digits=10, decimal_places=2, null=True)
 
     # properties
-    inscricao_imobiliaria = models.CharField(
-        unique=True, max_length=255
-    )  # ninscrao
-    codigo = models.CharField(unique=True, max_length=255)  # ncodimov
-    matricula = models.CharField(
-        max_length=255, null=True, blank=True, default=""
-    )  # nmatricu
-    razao_social = models.CharField(
-        max_length=255, null=True, blank=True, default=""
-    )  # nrazaoso
-    complemento = models.CharField(
-        max_length=255, null=True, blank=True, default=""
-    )  # ncomplem
-    numero_contribuinte = models.CharField(
-        max_length=255, null=True, blank=True, default=""
-    )  # ncodcont
-    fracao_ideal = models.DecimalField(
-        max_digits=10, decimal_places=2, null=True
-    )  # nfracaoi
-    zona = models.CharField(
-        max_length=255, null=True, blank=True, default=""
-    )  # zon2012predom
-    zona2012 = models.CharField(
-        max_length=255, null=True, blank=True, default=""
-    )  # zon2012
+    inscricao_imobiliaria = models.CharField(unique=True, max_length=255)
+    codigo = models.CharField(unique=True, max_length=255)
+    razao_social = models.CharField(max_length=255, null=True, blank=True, default="")
+    cnpj_cpf = NumberCharField(max_length=14, null=True, default=None)
+    complemento = models.CharField(max_length=255, null=True, blank=True, default="")
+    numero_contribuinte = models.CharField(max_length=255, null=True, blank=True, default="")
 
     # control
-    updated = models.DateTimeField(default=timezone.now)
-    filedatetime = models.DateTimeField(default=timezone.now)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    imported = models.DateTimeField(default=None, null=True, blank=True)
 
     def __str__(self):
         string = ""
@@ -158,6 +134,19 @@ class Imovel(models.Model):
 
     class Meta:
         ordering = ["codigo", "id"]
+
+    def clean_cnpj_cpf(self, value):
+        value = ''.join(filter(str.isdigit, value))
+        return value
+
+    def save(self, *args, **kwargs):
+
+        self.cnpj_cpf = self.clean_cnpj_cpf(self.cnpj_cpf)
+        if self.inscricao_imobiliaria:
+            only_number = ''.join(filter(str.isdigit, self.inscricao_imobiliaria))
+            self.codigo_lote = only_number[0:10]
+
+        super().save(*args, **kwargs)
 
 
 # ====NOTICES====

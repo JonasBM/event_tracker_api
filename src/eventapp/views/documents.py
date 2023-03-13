@@ -457,13 +457,12 @@ class NoticeReportDocx(generics.RetrieveAPIView):
                                     "numero_VA",
                                     va_identification,
                                 )
-                            
+
                             if "afm_nome_completo" in r.text:
                                 r.text = r.text.replace(
                                     "afm_nome_completo",
                                     notice.owner.get_full_name(),
                                 )
-                                
 
                             if "afm_matricula" in r.text:
                                 r.text = r.text.replace(
@@ -949,7 +948,8 @@ class downloadNotification(generics.RetrieveAPIView):
     ]
 
     def get(self, request, *args, **kwargs):
-        locale.setlocale(locale.LC_TIME, "pt_BR")
+        # locale.setlocale(locale.LC_TIME, "pt_BR")
+        locale.setlocale(locale.LC_TIME, "pt_BR.utf8")
 
         notice_event_reference = self.request.query_params.get(
             "notice_event_reference", None

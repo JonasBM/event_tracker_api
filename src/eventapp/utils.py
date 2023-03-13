@@ -93,7 +93,6 @@ def sub_month(data):
 
 def docxFromTemplate(file_path, context):
     if os.path.exists(file_path):
-        print(context)
         document = Document(file_path)
 
         for p in document.paragraphs:
