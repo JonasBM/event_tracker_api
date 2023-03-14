@@ -136,7 +136,14 @@ class Imovel(models.Model):
         ordering = ["codigo", "id"]
 
     def clean_cnpj_cpf(self, value):
-        value = ''.join(filter(str.isdigit, value))
+        if value:
+            value = ''.join(filter(str.isdigit, value))
+            if len(value) > 11:
+                value = value.zfill(14)
+            elif len(value) > 9:
+                value = value.zfill(11)
+            else:
+                value = None
         return value
 
     def save(self, *args, **kwargs):
