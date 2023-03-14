@@ -118,3 +118,34 @@ def docxFromTemplate(file_path, context):
 
         return document
     return None
+
+
+def parse_bool(value):
+
+    TRUE_VALUES = {
+        't', 'T',
+        'y', 'Y', 'yes', 'YES',
+        'true', 'True', 'TRUE',
+        'on', 'On', 'ON',
+        '1', 1,
+        True
+    }
+    FALSE_VALUES = {
+        'f', 'F',
+        'n', 'N', 'no', 'NO',
+        'false', 'False', 'FALSE',
+        'off', 'Off', 'OFF',
+        '0', 0, 0.0,
+        False
+    }
+    NULL_VALUES = {'null', 'Null', 'NULL', '', None}
+
+    try:
+        if value in TRUE_VALUES:
+            return True
+        elif value in FALSE_VALUES:
+            return False
+        elif value in NULL_VALUES:
+            return None
+    except Exception:
+        return None

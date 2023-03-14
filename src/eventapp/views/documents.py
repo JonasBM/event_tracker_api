@@ -24,7 +24,7 @@ from eventapp.models import (
     SurveyEvent,
     SurveyEventType,
 )
-from eventapp.utils import docxFromTemplate, getDateFromString
+from eventapp.utils import docxFromTemplate, getDateFromString, parse_bool
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
 from xhtml2pdf import pisa
@@ -950,7 +950,10 @@ class downloadNotification(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         # locale.setlocale(locale.LC_TIME, "pt_BR")
         locale.setlocale(locale.LC_TIME, "pt_BR.utf8")
-
+        notice_event_with_date = parse_bool(self.request.query_params.get(
+            "notice_event_with_date", False
+        )
+        )
         notice_event_reference = self.request.query_params.get(
             "notice_event_reference", None
         )
@@ -958,6 +961,7 @@ class downloadNotification(generics.RetrieveAPIView):
         notice_event_type_file_id = self.request.query_params.get(
             "notice_event_type_file_id", None
         )
+
         notice_event_type_file = None
         if notice_event_type_file_id:
             notice_event_type_file = NoticeEventTypeFile.objects.filter(
@@ -1001,32 +1005,27 @@ class downloadNotification(generics.RetrieveAPIView):
                     return str(string).upper()
                 return None
 
+            now = timezone.localtime(timezone.now())
+
+            data_atual = ""
+            hora_atual = ""
+            if notice_event_with_date:
+                data_atual = now.strftime("%d/%m/%Y")
+                hora_atual = now.strftime("%H:%M")
+
             context = {
-                "data_atual": timezone.localtime(timezone.now()).strftime(
-                    "%d/%m/%Y"
-                ),
-                "data_atual_por_extenso": timezone.localtime(
-                    timezone.now()
-                ).strftime("%d de %B de %Y"),
+                "data_atual": data_atual,
+                "hora_atual": hora_atual,
+                "data_atual_por_extenso": now.strftime("%d de %B de %Y"),
                 "afm_nome_completo": toUpperCasoOrNone(user.get_full_name()),
                 "afm_matricula": toUpperCasoOrNone(user.profile.matricula),
-                "auto_identificacao": toUpperCasoOrNone(
-                    notice_event.identification
-                ),
+                "auto_identificacao": toUpperCasoOrNone(notice_event.identification),
                 "auto_data": notice_event.date.strftime("%d/%m/%Y"),
-                "auto_data_por_extenso": notice_event.date.strftime(
-                    "%d de %B de %Y"
-                ),
-                "auto_documento": toUpperCasoOrNone(
-                    notice_event.notice.document
-                ),
+                "auto_data_por_extenso": notice_event.date.strftime("%d de %B de %Y"),
+                "auto_documento": toUpperCasoOrNone(notice_event.notice.document),
                 "auto_tipo": toUpperCasoOrNone(notice_event.notice_event_type),
-                "imovel_razao_social": toUpperCasoOrNone(
-                    notice_event.notice.imovel.razao_social
-                ),
-                "imovel_inscricao": toUpperCasoOrNone(
-                    notice_event.notice.imovel.inscricao_imobiliaria
-                ),
+                "imovel_razao_social": toUpperCasoOrNone(notice_event.notice.imovel.razao_social),
+                "imovel_inscricao": toUpperCasoOrNone(notice_event.notice.imovel.inscricao_imobiliaria),
                 "imovel_endereco_completo": toUpperCasoOrNone(address_string),
                 "auto_descumprido": toUpperCasoOrNone(notice_event_reference),
             }
