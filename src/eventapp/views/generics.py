@@ -506,18 +506,12 @@ class update_imovel(generics.ListCreateAPIView):
 
         if os.path.exists(file_update_imovel_running):
             return Response(
-                {
-                    "detail": (
-                        "Migração de dados não pode ocorrer em paralelo"
-                    )
-                },
+                {"detail": ("Migração de dados não pode ocorrer em paralelo")},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         else:
-            pass
-            # FIXME
-            # with open(file_update_imovel_running, "w"):
-            #     pass
+            with open(file_update_imovel_running, "w"):
+                pass
 
         print("Iniciando update")
         log = ImovelUpdateLog(
